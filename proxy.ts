@@ -31,8 +31,12 @@ export async function proxy(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup')
 
+  // Cron and auth callback routes are public — skip auth check
+  const isPublicRoute = request.nextUrl.pathname.startsWith('/api/cron') ||
+    request.nextUrl.pathname.startsWith('/auth')
+
   // Redirect unauthenticated users to login
-  if (!user && !isAuthPage) {
+  if (!user && !isAuthPage && !isPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
