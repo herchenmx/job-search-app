@@ -28,7 +28,7 @@ export interface Company {
   id: string
   user_id: string
   name: string
-  linkedin_page: string | null
+  linkedin_page: string             // NOT NULL
   cultural_match_rate: number | null
   cultural_match_insights: string | null
   created_at: string
@@ -39,11 +39,11 @@ export interface Job {
   id: string
   user_id: string
   company_id: string | null
-  job_title: string
-  posting_url: string | null
-  company: string | null
+  job_title: string                     // NOT NULL
+  posting_url: string                   // NOT NULL
+  company: string                       // NOT NULL
   linkedin_company_page: string | null
-  status: JobStatus
+  status: JobStatus                     // NOT NULL
   status_reason: string | null
   prioritisation_score: number | null
   overall_match_rate: number | null
@@ -51,7 +51,8 @@ export interface Job {
   experience_match_insights: string | null
   job_match_rate: number | null
   job_match_insights: string | null
-  job_description: string | null
+  job_description: string | null        // AI-generated summary
+  job_description_full: string | null   // Full scraped job description
   tailored_covering_letter: string | null
   salary_expectation: number | null
   application_date: string | null
