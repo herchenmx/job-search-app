@@ -14,6 +14,8 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [profileId, setProfileId] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [hasData, setHasData] = useState(false)
 
   const supabase = createClient()
 
@@ -36,6 +38,14 @@ export default function ProfilePage() {
         setExperienceRubric(data.experience_rubric ?? '')
         setWantedKeywords((data.wanted_keywords ?? []).join(', '))
         setUnwantedKeywords((data.unwanted_keywords ?? []).join(', '))
+        
+        // Check if user has any data saved
+        const hasContent = data.cv || data.culture_preferences_rubric || data.role_preferences_rubric || 
+                          data.experience_rubric || data.wanted_keywords?.length || data.unwanted_keywords?.length
+        setHasData(!!hasContent)
+      } else {
+        // No profile exists yet, go straight to edit mode
+        setEditing(true)
       }
     }
     load()
@@ -73,9 +83,94 @@ export default function ProfilePage() {
 
     setSaving(false)
     setSaved(true)
+    setEditing(false)
+    setHasData(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const handleCancel = () => {
+    setEditing(false)
+    // Reload from database to undo changes
+    const reload = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.from('user_profiles').select('*').eq('user_id', user.id).single()
+      if (data) {
+        setCv(data.cv ?? '')
+        setCultureRubric(data.culture_preferences_rubric ?? '')
+        setRoleRubric(data.role_preferences_rubric ?? '')
+        setExperienceRubric(data.experience_rubric ?? '')
+        setWantedKeywords((data.wanted_keywords ?? []).join(', '))
+        setUnwantedKeywords((data.unwanted_keywords ?? []).join(', '))
+      }
+    }
+    reload()
+  }
+
+  // Read-only view
+  if (!editing && hasData) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Profile & CV</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              This data is used by the AI analysis workflows.
+            </p>
+          </div>
+          <button
+            onClick={() => setEditing(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            Edit
+          </button>
+        </div>
+
+        {cv && (
+          <Section title="CV">
+            <pre className="text-sm whitespace-pre-wrap text-gray-700">{cv}</pre>
+          </Section>
+        )}
+
+        {cultureRubric && (
+          <Section title="Culture Preferences Rubric">
+            <pre className="text-sm whitespace-pre-wrap text-gray-700">{cultureRubric}</pre>
+          </Section>
+        )}
+
+        {roleRubric && (
+          <Section title="Role Preferences Rubric">
+            <pre className="text-sm whitespace-pre-wrap text-gray-700">{roleRubric}</pre>
+          </Section>
+        )}
+
+        {experienceRubric && (
+          <Section title="Experience Rubric">
+            <pre className="text-sm whitespace-pre-wrap text-gray-700">{experienceRubric}</pre>
+          </Section>
+        )}
+
+        {(wantedKeywords || unwantedKeywords) && (
+          <Section title="Keywords">
+            {wantedKeywords && (
+              <div className="mb-3">
+                <p className="text-xs font-medium text-gray-500 mb-1">Wanted</p>
+                <p className="text-sm text-gray-700">{wantedKeywords}</p>
+              </div>
+            )}
+            {unwantedKeywords && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Unwanted</p>
+                <p className="text-sm text-gray-700">{unwantedKeywords}</p>
+              </div>
+            )}
+          </Section>
+        )}
+      </div>
+    )
+  }
+
+  // Edit mode
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
@@ -85,7 +180,6 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      {/* CV */}
       <Section title="CV">
         <p className="text-xs text-gray-400 mb-3">
           Paste your CV in markdown format. PDF upload coming soon.
@@ -99,7 +193,6 @@ export default function ProfilePage() {
         />
       </Section>
 
-      {/* Culture rubric */}
       <Section title="Culture Preferences Rubric">
         <textarea
           value={cultureRubric}
@@ -110,7 +203,6 @@ export default function ProfilePage() {
         />
       </Section>
 
-      {/* Role rubric */}
       <Section title="Role Preferences Rubric">
         <textarea
           value={roleRubric}
@@ -121,7 +213,6 @@ export default function ProfilePage() {
         />
       </Section>
 
-      {/* Experience rubric */}
       <Section title="Experience Rubric">
         <textarea
           value={experienceRubric}
@@ -132,7 +223,6 @@ export default function ProfilePage() {
         />
       </Section>
 
-      {/* Keywords */}
       <Section title="Keywords">
         <div className="space-y-4">
           <div>
@@ -164,7 +254,6 @@ export default function ProfilePage() {
         </div>
       </Section>
 
-      {/* Save button */}
       <div className="flex items-center gap-3 pb-8">
         <button
           onClick={handleSave}
@@ -173,6 +262,14 @@ export default function ProfilePage() {
         >
           {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save profile'}
         </button>
+        {hasData && (
+          <button
+            onClick={handleCancel}
+            className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   )
