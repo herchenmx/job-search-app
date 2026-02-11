@@ -245,7 +245,7 @@ export default function ProfilePage() {
           >
             {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save profile'}
           </button>
-        </div>
+        </div> 
       </div>
 
       {/* CV confirmation modal */}
