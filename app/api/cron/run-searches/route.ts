@@ -93,8 +93,20 @@ async function scrapeWithBrightData(urls: string[]): Promise<BrightDataJob[]> {
     throw new Error(`BrightData error ${res.status}: ${text}`)
   }
 
-  // Return raw text for debugging
-  throw new Error(`RAW_RESPONSE_FIRST_200: ${text.substring(0, 200)} | LAST_200: ${text.substring(text.length - 200)}`)
+  // BrightData returns NDJSON (one JSON object per line)
+  return text
+    .split('\n')
+    .filter((line: string) => line.trim().length > 0)
+    .flatMap((line: string) => {
+      try {
+        const parsed = JSON.parse(line)
+        // Could be a single object or an array
+        return Array.isArray(parsed) ? parsed : [parsed]
+      } catch {
+        return []
+      }
+    })
+    .filter((item: BrightDataJob) => item && item.job_title && !('error' in item))
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
