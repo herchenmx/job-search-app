@@ -20,6 +20,12 @@ export default function NewJobPage() {
     setLoading(true)
     setError(null)
 
+    if (!postingUrl.toLowerCase().includes('linkedin')) {
+      setError('Job posting URL must be a LinkedIn URL')
+      setLoading(false)
+      return
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Not authenticated'); setLoading(false); return }
 
@@ -28,8 +34,8 @@ export default function NewJobPage() {
       .insert({
         user_id: user.id,
         job_title: jobTitle.trim(),
-        company: company.trim() || null,
-        posting_url: postingUrl.trim() || null,
+        company: company.trim(),
+        posting_url: postingUrl.trim(),
         salary_expectation: salaryExpectation ? Number(salaryExpectation) : null,
         status: 'Review',
         is_live: true,
@@ -75,12 +81,13 @@ export default function NewJobPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company
+              Company <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
+              required
               placeholder="e.g. Acme GmbH"
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -88,15 +95,17 @@ export default function NewJobPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Job posting URL
+              Job posting URL <span className="text-red-500">*</span>
             </label>
             <input
               type="url"
               value={postingUrl}
               onChange={(e) => setPostingUrl(e.target.value)}
+              required
               placeholder="https://www.linkedin.com/jobs/view/..."
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <p className="text-xs text-gray-400 mt-1">Must be a LinkedIn URL</p>
           </div>
 
           <div>
