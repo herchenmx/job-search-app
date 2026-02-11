@@ -87,13 +87,25 @@ async function scrapeWithBrightData(urls: string[]): Promise<BrightDataJob[]> {
     }
   )
 
+  const text = await res.text()
+
   if (!res.ok) {
-    const text = await res.text()
     throw new Error(`BrightData error ${res.status}: ${text}`)
   }
 
-  const data = await res.json()
-  return Array.isArray(data) ? data : []
+  // BrightData may return NDJSON (one JSON object per line) or a JSON array
+  const trimmed = text.trim()
+  if (trimmed.startsWith('[')) {
+    return JSON.parse(trimmed)
+  } else {
+    return trimmed
+      .split('\n')
+      .filter((line: string) => line.trim().length > 0)
+      .map((line: string) => {
+        try { return JSON.parse(line) } catch { return null }
+      })
+      .filter((item: BrightDataJob | null): item is BrightDataJob => item !== null && !(item as {error?: string}).error)
+  }
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
