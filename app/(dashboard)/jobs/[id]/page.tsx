@@ -226,10 +226,17 @@ export default async function JobDetailPage({
         </Section>
       </div>
 
-      {/* Job Description */}
+      {/* Job Summary */}
       <div className="mb-4">
-        <Section title="Job Description Summary">
+        <Section title="Job Summary">
           <TextBlock text={job.job_description} />
+        </Section>
+      </div>
+
+      {/* Full Job Description */}
+      <div className="mb-4">
+        <Section title="Full Job Description">
+          <TextBlock text={job.job_description_full} />
         </Section>
       </div>
 
