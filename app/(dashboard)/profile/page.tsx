@@ -234,7 +234,7 @@ export default function ProfilePage() {
               value={wantedKeywords}
               onChange={(e) => setWantedKeywords(e.target.value)}
               placeholder="Senior, Lead, Principal, AI, Automation…"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             />
             <p className="text-xs text-gray-400 mt-1">Comma-separated</p>
           </div>
@@ -247,7 +247,7 @@ export default function ProfilePage() {
               value={unwantedKeywords}
               onChange={(e) => setUnwantedKeywords(e.target.value)}
               placeholder="Junior, Unpaid, Marketing Manager…"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             />
             <p className="text-xs text-gray-400 mt-1">Comma-separated</p>
           </div>
