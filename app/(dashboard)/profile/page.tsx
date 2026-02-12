@@ -160,8 +160,26 @@ export default function ProfilePage() {
 
         {roleRubric && (
           <Section title="Role Preferences Rubric">
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={() => router.push('/profile/role-rubric')}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                ✏️ Edit with AI
+              </button>
+            </div>
             <pre className="text-sm whitespace-pre-wrap text-gray-700">{roleRubric}</pre>
           </Section>
+        )}
+        {!roleRubric && (
+          <div className="mb-4">
+            <button
+              onClick={() => router.push('/profile/role-rubric')}
+              className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition"
+            >
+              + Create Role Preferences Rubric
+            </button>
+          </div>
         )}
 
         {experienceRubric && (
