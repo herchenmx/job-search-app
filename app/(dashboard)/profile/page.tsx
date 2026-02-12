@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ProfilePage() {
@@ -18,6 +19,7 @@ export default function ProfilePage() {
   const [hasData, setHasData] = useState(false)
 
   const supabase = createClient()
+  const router = useRouter()
 
   useEffect(() => {
     const load = async () => {
@@ -134,8 +136,26 @@ export default function ProfilePage() {
 
         {cultureRubric && (
           <Section title="Culture Preferences Rubric">
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={() => router.push('/profile/culture-rubric')}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                ✏️ Edit with AI
+              </button>
+            </div>
             <pre className="text-sm whitespace-pre-wrap text-gray-700">{cultureRubric}</pre>
           </Section>
+        )}
+        {!cultureRubric && (
+          <div className="mb-4">
+            <button
+              onClick={() => router.push('/profile/culture-rubric')}
+              className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition"
+            >
+              + Create Culture Preferences Rubric
+            </button>
+          </div>
         )}
 
         {roleRubric && (
