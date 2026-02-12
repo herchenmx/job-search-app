@@ -49,11 +49,16 @@ export async function GET(request: NextRequest) {
   }
 
   // 1. Get all unassessed companies (no cultural_match_rate yet), grouped by user
+  // Process max 4 per run to stay within Anthropic's 5 RPM limit
+  // (15s delay between calls = 4 calls in ~60s = safe within Vercel timeout)
+  // Exclude companies flagged as needing reanalysis (rubric was missing when last attempted)
   const { data: companies, error } = await supabase
     .from('companies')
     .select('id, name, linkedin_page, user_id')
     .is('cultural_match_rate', null)
+    .eq('needs_culture_reanalysis', false)
     .order('name', { ascending: true })
+    .limit(4)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!companies || companies.length === 0) {
@@ -71,6 +76,11 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (!profile?.culture_preferences_rubric) {
+      // Flag so cron skips this company until rubric is added
+      await supabase
+        .from('companies')
+        .update({ needs_culture_reanalysis: true })
+        .eq('id', company.id)
       results.skipped++
       continue
     }
@@ -161,8 +171,8 @@ the Cultural Preferences are here: ${profile.culture_preferences_rubric}`,
         results.analysed++
       }
 
-      // Rate limiting — 2.5s between calls
-      await new Promise(resolve => setTimeout(resolve, 2500))
+      // Rate limiting — 15s between calls (Anthropic limit: 5 RPM)
+      await new Promise(resolve => setTimeout(resolve, 15000))
 
     } catch (err) {
       results.errors.push(`${company.name}: ${err instanceof Error ? err.message : 'Unknown error'}`)

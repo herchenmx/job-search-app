@@ -31,6 +31,7 @@ export interface Company {
   linkedin_page: string             // NOT NULL
   cultural_match_rate: number | null
   cultural_match_insights: string | null
+  needs_culture_reanalysis: boolean
   created_at: string
   updated_at: string
 }
