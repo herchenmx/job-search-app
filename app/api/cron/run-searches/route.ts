@@ -246,16 +246,6 @@ export async function GET(request: NextRequest) {
     .update({ last_run_at: new Date().toISOString() })
     .in('id', searchIds)
 
-  // Trigger culture analysis for any new companies
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://job-search-app-smoky.vercel.app'
-  try {
-    await fetch(`${baseUrl}/api/cron/analyse-culture`, {
-      headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
-    })
-  } catch {
-    // Non-fatal — culture analysis will catch up next run
-  }
-
   return NextResponse.json({
     message: 'Done',
     searches_run: searches.length,
