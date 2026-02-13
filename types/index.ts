@@ -59,6 +59,9 @@ export interface Job {
   application_date: string | null
   last_live_check: string | null
   is_live: boolean
+  needs_jd_summary_reanalysis: boolean
+  needs_role_match_reanalysis: boolean
+  needs_experience_match_reanalysis: boolean
   created_at: string
   updated_at: string
   // Joined relation

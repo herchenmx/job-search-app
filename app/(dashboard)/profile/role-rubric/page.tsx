@@ -135,6 +135,13 @@ export default function RoleRubricPage() {
           .insert({ user_id: user.id, role_preferences_rubric: content })
       }
 
+      // Reset reanalysis flag so cron re-processes jobs with updated rubric
+      await supabase
+        .from('jobs')
+        .update({ needs_role_match_reanalysis: false, job_match_rate: null, job_match_insights: null })
+        .eq('user_id', user.id)
+        .eq('needs_role_match_reanalysis', true)
+
       setSaveMsg('Saved!')
       setTimeout(() => router.push('/profile'), 1200)
     } catch (e) {

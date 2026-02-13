@@ -83,6 +83,19 @@ export default function ProfilePage() {
       if (data) setProfileId(data.id)
     }
 
+    // Reset job reanalysis flags so cron re-processes jobs with updated rubrics
+    await supabase
+      .from('jobs')
+      .update({ needs_role_match_reanalysis: false, job_match_rate: null, job_match_insights: null })
+      .eq('user_id', user.id)
+      .eq('needs_role_match_reanalysis', true)
+
+    await supabase
+      .from('jobs')
+      .update({ needs_experience_match_reanalysis: false, experience_match_rate: null, experience_match_insights: null })
+      .eq('user_id', user.id)
+      .eq('needs_experience_match_reanalysis', true)
+
     setSaving(false)
     setSaved(true)
     setEditing(false)

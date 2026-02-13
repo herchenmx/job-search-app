@@ -1,44 +1,23 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/run-searches",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/analyse-culture",
-      "schedule": "10 6 * * *"
-    },
-    {
-      "path": "/api/cron/analyse-culture",
-      "schedule": "20 6 * * *"
-    },
-    {
-      "path": "/api/cron/analyse-culture",
-      "schedule": "30 6 * * *"
-    },
-    {
-      "path": "/api/cron/analyse-culture",
-      "schedule": "40 6 * * *"
-    },
-    {
-      "path": "/api/cron/analyse-culture",
-      "schedule": "50 6 * * *"
-    },
-    {
-      "path": "/api/cron/analyse-culture",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/analyse-culture",
-      "schedule": "10 7 * * *"
-    },
-    {
-      "path": "/api/cron/analyse-culture",
-      "schedule": "20 7 * * *"
-    },
-    {
-      "path": "/api/cron/analyse-culture",
-      "schedule": "30 7 * * *"
-    }
+    { "path": "/api/cron/run-searches",           "schedule": "0 6 * * *"  },
+    { "path": "/api/cron/analyse-culture",         "schedule": "10 6 * * *" },
+    { "path": "/api/cron/analyse-culture",         "schedule": "20 6 * * *" },
+    { "path": "/api/cron/analyse-culture",         "schedule": "30 6 * * *" },
+    { "path": "/api/cron/analyse-culture",         "schedule": "40 6 * * *" },
+    { "path": "/api/cron/analyse-culture",         "schedule": "50 6 * * *" },
+    { "path": "/api/cron/analyse-culture",         "schedule": "0 7 * * *"  },
+    { "path": "/api/cron/analyse-culture",         "schedule": "10 7 * * *" },
+    { "path": "/api/cron/analyse-culture",         "schedule": "20 7 * * *" },
+    { "path": "/api/cron/analyse-culture",         "schedule": "30 7 * * *" },
+    { "path": "/api/cron/summarise-jd",            "schedule": "0 8 * * *"  },
+    { "path": "/api/cron/summarise-jd",            "schedule": "10 8 * * *" },
+    { "path": "/api/cron/summarise-jd",            "schedule": "20 8 * * *" },
+    { "path": "/api/cron/analyse-role-match",      "schedule": "30 8 * * *" },
+    { "path": "/api/cron/analyse-role-match",      "schedule": "40 8 * * *" },
+    { "path": "/api/cron/analyse-role-match",      "schedule": "50 8 * * *" },
+    { "path": "/api/cron/analyse-experience-match","schedule": "0 9 * * *"  },
+    { "path": "/api/cron/analyse-experience-match","schedule": "10 9 * * *" },
+    { "path": "/api/cron/analyse-experience-match","schedule": "20 9 * * *" }
   ]
 }
