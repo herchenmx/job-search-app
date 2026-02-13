@@ -76,6 +76,8 @@ export interface InterviewRecording {
   file_path: string
   file_name: string
   uploaded_at: string
+  assemblyai_id: string | null
+  transcription_status: string
 }
 
 export interface InterviewTranscript {
