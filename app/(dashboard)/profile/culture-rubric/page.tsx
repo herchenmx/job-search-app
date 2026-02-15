@@ -140,12 +140,11 @@ export default function CultureRubricPage() {
           .insert({ user_id: user.id, culture_preferences_rubric: content })
       }
 
-      // Reset reanalysis flag on all user's companies so cron picks them up again
+      // Clear all culture scores so cron re-analyses with updated rubric
       await supabase
         .from('companies')
         .update({ needs_culture_reanalysis: false, cultural_match_rate: null, cultural_match_insights: null })
         .eq('user_id', user.id)
-        .eq('needs_culture_reanalysis', true)
 
       setSaveMsg('Saved!')
       setTimeout(() => router.push('/profile'), 1200)
