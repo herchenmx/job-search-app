@@ -127,6 +127,7 @@ export interface AdminTask {
   priority: AdminTaskPriority
   category: AdminTaskCategory
   position: number
+  commit_shas: string[]
   created_at: string
   updated_at: string
 }

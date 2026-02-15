@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { AdminTask, AdminTaskStatus, AdminTaskPriority, AdminTaskCategory } from '@/types'
+import { Commit } from './CommitHistory'
 
 const STATUS_OPTIONS: AdminTaskStatus[] = ['backlog', 'in-progress', 'done']
 const PRIORITY_OPTIONS: AdminTaskPriority[] = ['high', 'medium', 'low']
@@ -38,7 +39,15 @@ const NEXT_STATUS: Record<AdminTaskStatus, AdminTaskStatus> = {
   'done': 'backlog',
 }
 
-export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTask[] }) {
+const GITHUB_REPO = 'https://github.com/herchenmx/job-search-app'
+
+export default function AdminTaskList({
+  initialTasks,
+  commits,
+}: {
+  initialTasks: AdminTask[]
+  commits: Commit[]
+}) {
   const [tasks, setTasks] = useState<AdminTask[]>(initialTasks)
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [filterCategory, setFilterCategory] = useState<string>('')
@@ -54,6 +63,7 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
   const [newStatus, setNewStatus] = useState<AdminTaskStatus>('backlog')
   const [newPriority, setNewPriority] = useState<AdminTaskPriority>('medium')
   const [newCategory, setNewCategory] = useState<AdminTaskCategory>('feature')
+  const [newCommitShas, setNewCommitShas] = useState<string[]>([])
 
   // Edit form state
   const [editTitle, setEditTitle] = useState('')
@@ -61,6 +71,33 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
   const [editStatus, setEditStatus] = useState<AdminTaskStatus>('backlog')
   const [editPriority, setEditPriority] = useState<AdminTaskPriority>('medium')
   const [editCategory, setEditCategory] = useState<AdminTaskCategory>('feature')
+  const [editCommitShas, setEditCommitShas] = useState<string[]>([])
+
+  // Build commit lookup for display
+  const commitMap = useMemo(() => {
+    const map = new Map<string, Commit>()
+    for (const c of commits) {
+      map.set(c.shortSha, c)
+      map.set(c.sha, c)
+    }
+    return map
+  }, [commits])
+
+  // Build reverse lookup: sha -> task id
+  const shaToTaskId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const t of tasks) {
+      for (const sha of (t.commit_shas || [])) {
+        map.set(sha, t.id)
+      }
+    }
+    return map
+  }, [tasks])
+
+  // Commits not yet linked to any task (for dropdown)
+  const unlinkedCommits = useMemo(() => {
+    return commits.filter(c => !shaToTaskId.has(c.shortSha))
+  }, [commits, shaToTaskId])
 
   // Filter pipeline
   const filteredTasks = useMemo(() => {
@@ -107,6 +144,7 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
           status: newStatus,
           priority: newPriority,
           category: newCategory,
+          commit_shas: newCommitShas,
         }),
       })
       if (res.ok) {
@@ -117,6 +155,7 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
         setNewStatus('backlog')
         setNewPriority('medium')
         setNewCategory('feature')
+        setNewCommitShas([])
         setShowAddForm(false)
       }
     } catch {
@@ -151,6 +190,7 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
       status: editStatus,
       priority: editPriority,
       category: editCategory,
+      commit_shas: editCommitShas,
     })
     setEditingId(null)
     setSaving(false)
@@ -174,7 +214,6 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
 
   const handleStatusCycle = async (task: AdminTask) => {
     const next = NEXT_STATUS[task.status]
-    // Optimistic update
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: next } : t))
     await handleUpdate(task.id, { status: next })
   }
@@ -186,7 +225,37 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
     setEditStatus(task.status)
     setEditPriority(task.priority)
     setEditCategory(task.category)
+    setEditCommitShas(task.commit_shas || [])
   }
+
+  // Commit picker helpers
+  const addCommitToNew = (sha: string) => {
+    if (!newCommitShas.includes(sha)) setNewCommitShas(prev => [...prev, sha])
+  }
+  const removeCommitFromNew = (sha: string) => {
+    setNewCommitShas(prev => prev.filter(s => s !== sha))
+  }
+  const addCommitToEdit = (sha: string) => {
+    if (!editCommitShas.includes(sha)) setEditCommitShas(prev => [...prev, sha])
+  }
+  const removeCommitFromEdit = (sha: string) => {
+    setEditCommitShas(prev => prev.filter(s => s !== sha))
+  }
+
+  // Available commits for picker (unlinked + currently selected)
+  const availableForNew = useMemo(() => {
+    const selected = new Set(newCommitShas)
+    return commits.filter(c => !shaToTaskId.has(c.shortSha) || selected.has(c.shortSha))
+  }, [commits, shaToTaskId, newCommitShas])
+
+  const availableForEdit = useMemo(() => {
+    if (!editingId) return []
+    const selected = new Set(editCommitShas)
+    return commits.filter(c => {
+      const linkedTo = shaToTaskId.get(c.shortSha)
+      return !linkedTo || linkedTo === editingId || selected.has(c.shortSha)
+    })
+  }, [commits, shaToTaskId, editCommitShas, editingId])
 
   return (
     <div>
@@ -283,6 +352,14 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
                 {saving ? 'Adding…' : 'Add task'}
               </button>
             </div>
+            {/* Commit picker */}
+            <CommitPicker
+              selected={newCommitShas}
+              available={availableForNew}
+              commitMap={commitMap}
+              onAdd={addCommitToNew}
+              onRemove={removeCommitFromNew}
+            />
           </div>
         </div>
       )}
@@ -388,6 +465,13 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
                           </button>
                         </div>
                       </div>
+                      <CommitPicker
+                        selected={editCommitShas}
+                        available={availableForEdit}
+                        commitMap={commitMap}
+                        onAdd={addCommitToEdit}
+                        onRemove={removeCommitFromEdit}
+                      />
                     </div>
                   ) : (
                     /* View mode */
@@ -411,6 +495,27 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
                         </div>
                         {task.description && (
                           <p className="text-sm text-gray-500 line-clamp-2">{task.description}</p>
+                        )}
+                        {/* Linked commits */}
+                        {task.commit_shas && task.commit_shas.length > 0 && (
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            <span className="text-xs text-gray-400">Commits:</span>
+                            {task.commit_shas.map(sha => {
+                              const commit = commitMap.get(sha)
+                              return (
+                                <a
+                                  key={sha}
+                                  href={commit?.url || `${GITHUB_REPO}/commit/${sha}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs font-mono bg-gray-50 text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded border border-gray-200 transition-colors"
+                                  title={commit?.message || sha}
+                                >
+                                  {sha}
+                                </a>
+                              )
+                            })}
+                          </div>
                         )}
                         <p className="text-xs text-gray-400 mt-1">
                           {new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -461,6 +566,72 @@ export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTas
         <div className="mt-6 text-xs text-gray-400 text-center">
           {counts['backlog'] || 0} backlog · {counts['in-progress'] || 0} in progress · {counts['done'] || 0} done · {tasks.length} total
         </div>
+      )}
+    </div>
+  )
+}
+
+/* Commit picker sub-component */
+function CommitPicker({
+  selected,
+  available,
+  commitMap,
+  onAdd,
+  onRemove,
+}: {
+  selected: string[]
+  available: Commit[]
+  commitMap: Map<string, Commit>
+  onAdd: (sha: string) => void
+  onRemove: (sha: string) => void
+}) {
+  const unselected = available.filter(c => !selected.includes(c.shortSha))
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">Linked commits</label>
+      {/* Selected commits */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {selected.map(sha => {
+            const commit = commitMap.get(sha)
+            return (
+              <span
+                key={sha}
+                className="inline-flex items-center gap-1 text-xs font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200"
+              >
+                {sha}
+                <span className="text-blue-400 max-w-[200px] truncate">
+                  {commit ? ` ${commit.message}` : ''}
+                </span>
+                <button
+                  onClick={() => onRemove(sha)}
+                  className="text-blue-400 hover:text-blue-700 ml-0.5"
+                >
+                  ×
+                </button>
+              </span>
+            )
+          })}
+        </div>
+      )}
+      {/* Dropdown to add */}
+      {unselected.length > 0 && (
+        <select
+          onChange={e => { if (e.target.value) { onAdd(e.target.value); e.target.value = '' } }}
+          className="text-xs text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+          defaultValue=""
+        >
+          <option value="">Link a commit…</option>
+          {unselected.map(c => (
+            <option key={c.shortSha} value={c.shortSha}>
+              {c.shortSha} — {c.message.slice(0, 80)}
+            </option>
+          ))}
+        </select>
+      )}
+      {selected.length === 0 && unselected.length === 0 && (
+        <p className="text-xs text-gray-400 italic">No commits available to link.</p>
       )}
     </div>
   )

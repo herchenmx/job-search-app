@@ -73,10 +73,10 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      <AdminTaskList initialTasks={(tasks || []) as AdminTask[]} />
+      <AdminTaskList initialTasks={(tasks || []) as AdminTask[]} commits={commitData.commits} />
 
       <div className="mt-8">
-        <CommitHistory initialCommits={commitData.commits} hasMore={commitData.hasMore} />
+        <CommitHistory initialCommits={commitData.commits} hasMore={commitData.hasMore} tasks={(tasks || []) as AdminTask[]} />
       </div>
     </div>
   )
