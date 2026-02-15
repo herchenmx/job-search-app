@@ -192,6 +192,12 @@ export default async function JobDetailPage({
         <Section title="Application">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
+              <span className="text-gray-500">Added</span>
+              <span className="text-gray-900">
+                {new Date(job.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-gray-500">Applied</span>
               <span className="text-gray-900">{job.application_date ?? '—'}</span>
             </div>

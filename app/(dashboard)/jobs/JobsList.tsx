@@ -180,6 +180,10 @@ export default function JobsList({
                           </div>
                           <p className="text-sm text-gray-500 mt-0.5">
                             {job.company || job.companies?.name || '—'}
+                            <span className="text-gray-300 mx-1.5">·</span>
+                            <span className="text-xs text-gray-400">
+                              Added {new Date(job.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
                           </p>
                           <div className="flex items-center gap-3 mt-2 flex-wrap">
                             <ScoreBadge score={job.experience_match_rate} label="Exp" />
