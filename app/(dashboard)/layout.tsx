@@ -26,7 +26,8 @@ export default async function DashboardLayout({
           <NavLink href="/jobs" label="Jobs" icon="💼" />
           <NavLink href="/companies" label="Companies" icon="🏢" />
           <NavLink href="/searches" label="Searches" icon="🔍" />
-          <NavLink href="/profile" label="Profile & CV" icon="👤" />
+          <NavLink href="/profile/cv" label="CV" icon="📄" />
+          <NavLink href="/profile" label="Profile" icon="👤" />
         </nav>
 
         <div className="p-3 border-t border-gray-200">

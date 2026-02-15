@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ProfilePage() {
-  const [cv, setCv] = useState('')
   const [cultureRubric, setCultureRubric] = useState('')
   const [roleRubric, setRoleRubric] = useState('')
   const [experienceRubric, setExperienceRubric] = useState('')
@@ -34,19 +33,16 @@ export default function ProfilePage() {
 
       if (data) {
         setProfileId(data.id)
-        setCv(data.cv ?? '')
         setCultureRubric(data.culture_preferences_rubric ?? '')
         setRoleRubric(data.role_preferences_rubric ?? '')
         setExperienceRubric(data.experience_rubric ?? '')
         setWantedKeywords((data.wanted_keywords ?? []).join(', '))
         setUnwantedKeywords((data.unwanted_keywords ?? []).join(', '))
-        
-        // Check if user has any data saved
-        const hasContent = data.cv || data.culture_preferences_rubric || data.role_preferences_rubric || 
+
+        const hasContent = data.culture_preferences_rubric || data.role_preferences_rubric ||
                           data.experience_rubric || data.wanted_keywords?.length || data.unwanted_keywords?.length
         setHasData(!!hasContent)
       } else {
-        // No profile exists yet, go straight to edit mode
         setEditing(true)
       }
     }
@@ -62,7 +58,6 @@ export default function ProfilePage() {
 
     const payload = {
       user_id: user.id,
-      cv: cv || null,
       culture_preferences_rubric: cultureRubric || null,
       role_preferences_rubric: roleRubric || null,
       experience_rubric: experienceRubric || null,
@@ -105,13 +100,11 @@ export default function ProfilePage() {
 
   const handleCancel = () => {
     setEditing(false)
-    // Reload from database to undo changes
     const reload = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data } = await supabase.from('user_profiles').select('*').eq('user_id', user.id).single()
       if (data) {
-        setCv(data.cv ?? '')
         setCultureRubric(data.culture_preferences_rubric ?? '')
         setRoleRubric(data.role_preferences_rubric ?? '')
         setExperienceRubric(data.experience_rubric ?? '')
@@ -128,7 +121,7 @@ export default function ProfilePage() {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Profile & CV</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Profile</h2>
             <p className="text-sm text-gray-500 mt-0.5">
               This data is used by the AI analysis workflows.
             </p>
@@ -141,12 +134,6 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {cv && (
-          <Section title="CV">
-            <pre className="text-sm whitespace-pre-wrap text-gray-700">{cv}</pre>
-          </Section>
-        )}
-
         {cultureRubric && (
           <Section title="Culture Preferences Rubric">
             <div className="flex justify-end mb-2">
@@ -154,7 +141,7 @@ export default function ProfilePage() {
                 onClick={() => router.push('/profile/culture-rubric')}
                 className="text-xs text-blue-600 hover:underline"
               >
-                ✏️ Edit with AI
+                Edit with AI
               </button>
             </div>
             <pre className="text-sm whitespace-pre-wrap text-gray-700">{cultureRubric}</pre>
@@ -178,7 +165,7 @@ export default function ProfilePage() {
                 onClick={() => router.push('/profile/role-rubric')}
                 className="text-xs text-blue-600 hover:underline"
               >
-                ✏️ Edit with AI
+                Edit with AI
               </button>
             </div>
             <pre className="text-sm whitespace-pre-wrap text-gray-700">{roleRubric}</pre>
@@ -225,24 +212,11 @@ export default function ProfilePage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Profile & CV</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Profile</h2>
         <p className="text-sm text-gray-500 mt-0.5">
           This data is used by the AI analysis workflows.
         </p>
       </div>
-
-      <Section title="CV">
-        <p className="text-xs text-gray-400 mb-3">
-          Paste your CV in markdown format. PDF upload coming soon.
-        </p>
-        <textarea
-          value={cv}
-          onChange={(e) => setCv(e.target.value)}
-          rows={12}
-          placeholder="Paste your CV in markdown format here…"
-          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-        />
-      </Section>
 
       <Section title="Culture Preferences Rubric">
         <textarea
@@ -311,7 +285,7 @@ export default function ProfilePage() {
           disabled={saving}
           className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save profile'}
+          {saving ? 'Saving…' : saved ? 'Saved' : 'Save profile'}
         </button>
         {hasData && (
           <button

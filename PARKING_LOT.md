@@ -5,7 +5,7 @@
 - [x] Interview recording auto-purge after successful transcription
 - [x] Interview transcript review page before analysis runs
 - [ ] In-app bug reporting widget (for issues like failed transcription)
-- [ ] CV edit page after initial upload (in case PDF parsing needs manual fixes)
+- [x] CV edit page after initial upload (in case PDF parsing needs manual fixes)
 - [x] Delete job listings (individually from job detail page + bulk via multi-select from jobs list)
 - [x] Delete companies (individually from company detail page + bulk via multi-select from companies list)
 - [x] Add sorting (by name, cultural match rating) on companies list page
