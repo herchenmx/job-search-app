@@ -142,14 +142,14 @@ export default function CompaniesList({
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search companies…"
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
         />
 
         {/* Sort field */}
         <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value as SortField)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="name">Sort by name</option>
           <option value="rating">Sort by rating</option>
@@ -158,7 +158,7 @@ export default function CompaniesList({
         {/* Sort direction */}
         <button
           onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
           title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
         >
           {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}

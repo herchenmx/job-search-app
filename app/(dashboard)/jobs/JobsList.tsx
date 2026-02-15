@@ -222,14 +222,14 @@ export default function JobsList({
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search jobs…"
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
         />
 
         {/* Status filter */}
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">All statuses</option>
           {availableStatuses.map(s => (
@@ -241,7 +241,7 @@ export default function JobsList({
         <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value as SortField)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="status">Sort by status</option>
           <option value="added">Sort by added date</option>
@@ -252,7 +252,7 @@ export default function JobsList({
         {/* Sort direction */}
         <button
           onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
           title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
         >
           {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
