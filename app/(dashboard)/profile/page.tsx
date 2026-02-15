@@ -113,19 +113,20 @@ export default function ProfilePage() {
       if (data) setProfileId(data.id)
     }
 
-    // If rubrics changed, reset reanalysis flags
-    if (field === 'role' || field === 'experience') {
+    // When a rubric changes, clear ALL existing scores for that analysis type
+    // so the cron re-processes every job with the updated rubric
+    if (field === 'role') {
       await supabase
         .from('jobs')
         .update({ needs_role_match_reanalysis: false, job_match_rate: null, job_match_insights: null })
         .eq('user_id', user.id)
-        .eq('needs_role_match_reanalysis', true)
+    }
 
+    if (field === 'experience') {
       await supabase
         .from('jobs')
         .update({ needs_experience_match_reanalysis: false, experience_match_rate: null, experience_match_insights: null })
         .eq('user_id', user.id)
-        .eq('needs_experience_match_reanalysis', true)
     }
 
     // Update stashed originals to the new saved values
