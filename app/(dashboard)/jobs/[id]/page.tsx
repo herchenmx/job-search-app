@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { Job, Company, InterviewTranscript, InterviewAnalysis } from '@/types'
 import JobStatusUpdater from './JobStatusUpdater'
 import InterviewSection from './InterviewSection'
+import CultureAnalysisButton from './CultureAnalysisButton'
+import DeleteJobButton from './DeleteJobButton'
 
 const STATUS_COLOURS: Record<string, string> = {
   'Interested':   'bg-green-100 text-green-800',
@@ -164,7 +166,10 @@ export default async function JobDetailPage({
 
         {/* Status updater */}
         <div className="mt-4 pt-4 border-t border-gray-100">
-          <JobStatusUpdater jobId={job.id} currentStatus={job.status} currentReason={job.status_reason} />
+          <div className="flex items-center justify-between gap-4">
+            <JobStatusUpdater jobId={job.id} currentStatus={job.status} currentReason={job.status_reason} />
+            <DeleteJobButton jobId={job.id} />
+          </div>
         </div>
       </div>
 
@@ -221,7 +226,10 @@ export default async function JobDetailPage({
               </p>
             </div>
           ) : (
-            <p className="text-sm text-gray-400 italic">Not analysed yet</p>
+            <div>
+              <p className="text-sm text-gray-400 italic">Not analysed yet</p>
+              {company && <CultureAnalysisButton companyId={company.id} />}
+            </div>
           )}
         </Section>
       </div>
