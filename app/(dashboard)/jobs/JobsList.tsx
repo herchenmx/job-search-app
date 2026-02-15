@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 import { Job } from '@/types'
 
 type SortField = 'status' | 'added' | 'title' | 'company'
@@ -98,11 +99,14 @@ export default function JobsList({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [bulkStatus, setBulkStatus] = useState('')
+  const [updatingStatus, setUpdatingStatus] = useState(false)
   const [sortBy, setSortBy] = useState<SortField>('status')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [search, setSearch] = useState('')
   const router = useRouter()
+  const supabase = createClient()
 
   // Processing pipeline: filter → sort
   const processedJobs = useMemo(() => {
@@ -209,6 +213,26 @@ export default function JobsList({
     }
   }
 
+  const handleBulkStatusChange = async () => {
+    if (!bulkStatus || selected.size === 0) return
+    setUpdatingStatus(true)
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ status: bulkStatus })
+        .in('id', Array.from(selected))
+      if (!error) {
+        setSelected(new Set())
+        setBulkStatus('')
+        router.refresh()
+      }
+    } catch {
+      // ignore
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
+
   const isFiltered = search.trim() || filterStatus
   const showingCount = processedJobs.length
 
@@ -268,13 +292,38 @@ export default function JobsList({
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          <span className="text-sm text-red-800 font-medium">
+        <div className="flex items-center gap-3 mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex-wrap">
+          <span className="text-sm text-blue-800 font-medium">
             {selected.size} job{selected.size > 1 ? 's' : ''} selected
           </span>
+
+          <div className="h-4 w-px bg-blue-200" />
+
+          {/* Bulk status change */}
+          <select
+            value={bulkStatus}
+            onChange={e => setBulkStatus(e.target.value)}
+            className="text-xs text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Change status to…</option>
+            {statusOrder.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleBulkStatusChange}
+            disabled={!bulkStatus || updatingStatus}
+            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {updatingStatus ? 'Updating…' : 'Apply'}
+          </button>
+
+          <div className="h-4 w-px bg-blue-200" />
+
+          {/* Bulk delete */}
           {confirming ? (
             <>
-              <span className="text-xs text-red-600">Are you sure?</span>
+              <span className="text-xs text-red-600">Delete? This cannot be undone.</span>
               <button
                 onClick={handleBulkDelete}
                 disabled={deleting}
@@ -287,25 +336,24 @@ export default function JobsList({
                 disabled={deleting}
                 className="text-xs bg-white text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-300 transition-colors"
               >
-                Cancel
+                No
               </button>
             </>
           ) : (
-            <>
-              <button
-                onClick={() => setConfirming(true)}
-                className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Delete selected
-              </button>
-              <button
-                onClick={() => setSelected(new Set())}
-                className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                Clear selection
-              </button>
-            </>
+            <button
+              onClick={() => setConfirming(true)}
+              className="text-xs text-red-600 hover:text-red-700 transition-colors"
+            >
+              Delete selected
+            </button>
           )}
+
+          <button
+            onClick={() => { setSelected(new Set()); setConfirming(false); setBulkStatus('') }}
+            className="text-xs text-gray-500 hover:text-gray-700 transition-colors ml-auto"
+          >
+            Clear selection
+          </button>
         </div>
       )}
 
