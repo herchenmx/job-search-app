@@ -1,7 +1,6 @@
 # Future Features & Improvements
 
 ## High Priority
-- [ ] Microsoft OAuth setup (similar to Google OAuth)
 - [x] CV upload confirmation flow: show parsed markdown, let user confirm/edit before saving
 - [x] Interview recording auto-purge after successful transcription
 - [x] Interview transcript review page before analysis runs
