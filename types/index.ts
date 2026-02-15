@@ -83,6 +83,7 @@ export interface InterviewRecording {
 export interface InterviewTranscript {
   id: string
   job_id: string
+  user_id: string
   recording_id: string | null
   interview_number: number
   transcript_text: string
@@ -92,6 +93,7 @@ export interface InterviewTranscript {
 export interface InterviewAnalysis {
   id: string
   job_id: string
+  user_id: string
   transcript_id: string | null
   interview_number: number
   analysis_text: string
