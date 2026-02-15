@@ -2,9 +2,9 @@
 
 ## High Priority
 - [ ] Microsoft OAuth setup (similar to Google OAuth)
-- [ ] CV upload confirmation flow: show parsed markdown, let user confirm/edit before saving
-- [ ] Interview recording auto-purge after successful transcription
-- [ ] Interview transcript review page before analysis runs
+- [x] CV upload confirmation flow: show parsed markdown, let user confirm/edit before saving
+- [x] Interview recording auto-purge after successful transcription
+- [x] Interview transcript review page before analysis runs
 - [ ] In-app bug reporting widget (for issues like failed transcription)
 - [ ] CV edit page after initial upload (in case PDF parsing needs manual fixes)
 
