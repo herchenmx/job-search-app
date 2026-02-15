@@ -26,6 +26,11 @@ export default function CultureRubricPage() {
   const [origRubric, setOrigRubric] = useState<string | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
+  // Cost warning states
+  const [showSaveWarning, setShowSaveWarning] = useState(false)
+  const [pendingSaveContent, setPendingSaveContent] = useState('')
+  const [showAiFlowWarning, setShowAiFlowWarning] = useState(false)
+
   // Load existing conversation and saved rubric on mount
   useEffect(() => {
     async function loadConversation() {
@@ -71,8 +76,17 @@ export default function CultureRubricPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  // Start chat — send empty message to get first AI message
+  // Start chat — with cost warning if rubric already exists
+  function handleStartChat() {
+    if (origRubric && messages.length === 0) {
+      setShowAiFlowWarning(true)
+    } else {
+      startChat()
+    }
+  }
+
   async function startChat() {
+    setShowAiFlowWarning(false)
     setMode('chat')
     if (messages.length > 0) return // already have a conversation
     setLoading(true)
@@ -125,7 +139,17 @@ export default function CultureRubricPage() {
     }
   }
 
+  function handleSaveClick(content: string) {
+    if (content !== (origRubric ?? '')) {
+      setPendingSaveContent(content)
+      setShowSaveWarning(true)
+    } else {
+      saveRubric(content)
+    }
+  }
+
   async function saveRubric(content: string) {
+    setShowSaveWarning(false)
     setSaving(true)
     setSaveMsg('')
     try {
@@ -210,7 +234,7 @@ export default function CultureRubricPage() {
               <span className="text-sm text-gray-500">You already have your preferences written — paste them in markdown format.</span>
             </button>
             <button
-              onClick={startChat}
+              onClick={handleStartChat}
               className="flex flex-col items-start p-6 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition text-left"
             >
               <span className="text-2xl mb-2">💬</span>
@@ -259,7 +283,7 @@ export default function CultureRubricPage() {
           />
           <div className="flex items-center gap-3">
             <button
-              onClick={() => saveRubric(pasteValue)}
+              onClick={() => handleSaveClick(pasteValue)}
               disabled={!pasteValue.trim() || saving}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
@@ -313,7 +337,7 @@ export default function CultureRubricPage() {
               />
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => saveRubric(rubricDraft)}
+                  onClick={() => handleSaveClick(rubricDraft)}
                   disabled={!rubricDraft.trim() || saving}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
@@ -347,6 +371,80 @@ export default function CultureRubricPage() {
           )}
         </div>
       )}
+
+      {/* Cost warning: saving rubric that will reset scores */}
+      {showSaveWarning && (
+        <CostWarningDialog
+          onConfirm={() => saveRubric(pendingSaveContent)}
+          onCancel={() => setShowSaveWarning(false)}
+        />
+      )}
+
+      {/* Cost warning: entering AI flow when rubric already exists */}
+      {showAiFlowWarning && (
+        <AiFlowWarningDialog
+          onConfirm={startChat}
+          onCancel={() => setShowAiFlowWarning(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function CostWarningDialog({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6 space-y-4">
+        <h3 className="text-base font-semibold text-gray-900">Reset existing ratings?</h3>
+        <p className="text-sm text-gray-600">
+          Changing this rubric will reset all your existing ratings for this analysis type.
+          Re-running these analyses will incur additional API costs. We do not recommend
+          this unless you have meaningfully updated your rubric.
+        </p>
+        <div className="flex flex-col gap-2 pt-2">
+          <button
+            onClick={onConfirm}
+            className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+          >
+            I understand, save and reset ratings
+          </button>
+          <button
+            onClick={onCancel}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Cancel, don&apos;t change this
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AiFlowWarningDialog({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6 space-y-4">
+        <h3 className="text-base font-semibold text-gray-900">Start a new AI conversation?</h3>
+        <p className="text-sm text-gray-600">
+          You already have a saved rubric. Starting a new AI conversation will use API credits,
+          and saving the result will reset all your existing ratings — which will incur
+          additional costs to re-run the analyses.
+        </p>
+        <div className="flex flex-col gap-2 pt-2">
+          <button
+            onClick={onConfirm}
+            className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+          >
+            I understand, proceed anyway
+          </button>
+          <button
+            onClick={onCancel}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Cancel, keep my current rubric
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

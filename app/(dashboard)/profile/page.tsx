@@ -27,6 +27,9 @@ export default function ProfilePage() {
   const [origWanted, setOrigWanted] = useState('')
   const [origUnwanted, setOrigUnwanted] = useState('')
 
+  // Cost warning confirmation
+  const [confirmField, setConfirmField] = useState<FieldKey | null>(null)
+
   const supabase = createClient()
   const router = useRouter()
 
@@ -84,7 +87,24 @@ export default function ProfilePage() {
     setEditingField(null)
   }
 
-  const handleSave = async (field: FieldKey) => {
+  // Check if saving this field would trigger a score reset
+  const wouldResetScores = (field: FieldKey): boolean => {
+    if (field === 'culture') return cultureRubric !== origCulture
+    if (field === 'role') return roleRubric !== origRole
+    if (field === 'experience') return experienceRubric !== origExperience
+    return false
+  }
+
+  const handleSaveClick = (field: FieldKey) => {
+    if (wouldResetScores(field)) {
+      setConfirmField(field)
+    } else {
+      performSave(field)
+    }
+  }
+
+  const performSave = async (field: FieldKey) => {
+    setConfirmField(null)
     setSaving(true)
     setSavedField(null)
 
@@ -166,7 +186,7 @@ export default function ProfilePage() {
         saving={saving && editingField === 'culture'}
         saved={savedField === 'culture'}
         onEdit={() => startEditing('culture')}
-        onSave={() => handleSave('culture')}
+        onSave={() => handleSaveClick('culture')}
         onCancel={cancelEditing}
         disabled={editingField !== null && editingField !== 'culture'}
         extraActions={
@@ -200,7 +220,7 @@ export default function ProfilePage() {
         saving={saving && editingField === 'role'}
         saved={savedField === 'role'}
         onEdit={() => startEditing('role')}
-        onSave={() => handleSave('role')}
+        onSave={() => handleSaveClick('role')}
         onCancel={cancelEditing}
         disabled={editingField !== null && editingField !== 'role'}
         extraActions={
@@ -234,7 +254,7 @@ export default function ProfilePage() {
         saving={saving && editingField === 'experience'}
         saved={savedField === 'experience'}
         onEdit={() => startEditing('experience')}
-        onSave={() => handleSave('experience')}
+        onSave={() => handleSaveClick('experience')}
         onCancel={cancelEditing}
         disabled={editingField !== null && editingField !== 'experience'}
       >
@@ -260,7 +280,7 @@ export default function ProfilePage() {
         saving={saving && editingField === 'keywords'}
         saved={savedField === 'keywords'}
         onEdit={() => startEditing('keywords')}
-        onSave={() => handleSave('keywords')}
+        onSave={() => handleSaveClick('keywords')}
         onCancel={cancelEditing}
         disabled={editingField !== null && editingField !== 'keywords'}
       >
@@ -312,6 +332,49 @@ export default function ProfilePage() {
           <p className="text-sm text-gray-400 italic">No keywords set.</p>
         )}
       </Section>
+
+      {/* Cost warning confirmation dialog */}
+      {confirmField && (
+        <CostWarningDialog
+          onConfirm={() => performSave(confirmField)}
+          onCancel={() => setConfirmField(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function CostWarningDialog({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6 space-y-4">
+        <h3 className="text-base font-semibold text-gray-900">Reset existing ratings?</h3>
+        <p className="text-sm text-gray-600">
+          Changing this rubric will reset all your existing ratings for this analysis type.
+          Re-running these analyses will incur additional API costs. We do not recommend
+          this unless you have meaningfully updated your rubric.
+        </p>
+        <div className="flex flex-col gap-2 pt-2">
+          <button
+            onClick={onConfirm}
+            className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+          >
+            I understand, save and reset ratings
+          </button>
+          <button
+            onClick={onCancel}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Cancel, don&apos;t change this
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
