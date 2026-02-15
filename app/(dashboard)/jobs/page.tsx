@@ -11,6 +11,11 @@ const STATUS_ORDER = [
   'Unfit', 'Declined', 'Rejected', 'Closed'
 ]
 
+const ACTIVE_STATUSES = [
+  'Applied', 'Referred', 'Followed-Up',
+  '1st Stage', '2nd Stage', '3rd Stage', '4th Stage', 'Offered'
+]
+
 export default async function JobsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -21,16 +26,9 @@ export default async function JobsPage() {
     .eq('user_id', user!.id)
     .order('prioritisation_score', { ascending: false })
 
-  const grouped = STATUS_ORDER.reduce((acc, status) => {
-    const statusJobs = (jobs || []).filter((j: Job) => j.status === status)
-    if (statusJobs.length > 0) acc[status] = statusJobs
-    return acc
-  }, {} as Record<string, Job[]>)
-
-  const totalJobs = jobs?.length ?? 0
-  const activeJobs = jobs?.filter((j: Job) =>
-    ['Applied', 'Referred', 'Followed-Up', '1st Stage', '2nd Stage', '3rd Stage', '4th Stage', 'Offered'].includes(j.status)
-  ).length ?? 0
+  const allJobs = (jobs || []) as Job[]
+  const totalJobs = allJobs.length
+  const activeJobs = allJobs.filter(j => ACTIVE_STATUSES.includes(j.status)).length
 
   return (
     <div>
@@ -67,8 +65,8 @@ export default async function JobsPage() {
         </div>
       )}
 
-      {/* Grouped job list with multi-select */}
-      {totalJobs > 0 && <JobsList grouped={grouped} />}
+      {/* Job list with sorting, filtering, search, and multi-select */}
+      {totalJobs > 0 && <JobsList jobs={allJobs} statusOrder={STATUS_ORDER} />}
     </div>
   )
 }

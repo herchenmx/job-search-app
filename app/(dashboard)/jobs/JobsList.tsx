@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Job } from '@/types'
+
+type SortField = 'status' | 'added' | 'title' | 'company'
+type SortDir = 'asc' | 'desc'
 
 const STATUS_COLOURS: Record<string, string> = {
   'Interested':   'bg-green-100 text-green-800',
@@ -36,15 +39,133 @@ function ScoreBadge({ score, label }: { score: number | null; label: string }) {
   )
 }
 
+function JobCard({ job, status }: { job: Job; status: string }) {
+  return (
+    <Link
+      href={`/jobs/${job.id}`}
+      className="flex-1 block bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-gray-900 text-sm">
+              {job.job_title}
+            </span>
+            {!job.is_live && (
+              <span className="text-xs bg-red-50 text-red-500 px-1.5 py-0.5 rounded">
+                Offline
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {job.company || job.companies?.name || '—'}
+            <span className="text-gray-300 mx-1.5">·</span>
+            <span className="text-xs text-gray-400">
+              Added {new Date(job.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          </p>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <ScoreBadge score={job.experience_match_rate} label="Exp" />
+            <ScoreBadge score={job.job_match_rate} label="Role" />
+            <ScoreBadge
+              score={job.companies?.cultural_match_rate ?? null}
+              label="Culture"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLOURS[status] ?? 'bg-gray-100 text-gray-600'}`}>
+            {status}
+          </span>
+          {job.prioritisation_score !== null && (
+            <span className="text-xs text-gray-400">
+              Score: {Math.round(job.prioritisation_score)}
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
+  )
+}
+
 export default function JobsList({
-  grouped,
+  jobs,
+  statusOrder,
 }: {
-  grouped: Record<string, Job[]>
+  jobs: Job[]
+  statusOrder: string[]
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [sortBy, setSortBy] = useState<SortField>('status')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [filterStatus, setFilterStatus] = useState<string>('')
+  const [search, setSearch] = useState('')
   const router = useRouter()
+
+  // Processing pipeline: filter → sort
+  const processedJobs = useMemo(() => {
+    let result = [...jobs]
+
+    // 1. Free-text search
+    if (search.trim()) {
+      const q = search.toLowerCase().trim()
+      result = result.filter(j =>
+        j.job_title.toLowerCase().includes(q) ||
+        (j.company || '').toLowerCase().includes(q) ||
+        (j.companies?.name || '').toLowerCase().includes(q)
+      )
+    }
+
+    // 2. Status filter
+    if (filterStatus) {
+      result = result.filter(j => j.status === filterStatus)
+    }
+
+    // 3. Sort
+    const dir = sortDir === 'asc' ? 1 : -1
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'status': {
+          const aIdx = statusOrder.indexOf(a.status)
+          const bIdx = statusOrder.indexOf(b.status)
+          return (aIdx - bIdx) * dir
+        }
+        case 'added':
+          return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir
+        case 'title':
+          return a.job_title.localeCompare(b.job_title) * dir
+        case 'company': {
+          const aName = (a.company || a.companies?.name || '').toLowerCase()
+          const bName = (b.company || b.companies?.name || '').toLowerCase()
+          return aName.localeCompare(bName) * dir
+        }
+        default:
+          return 0
+      }
+    })
+
+    return result
+  }, [jobs, search, filterStatus, sortBy, sortDir, statusOrder])
+
+  // Group by status when sorting by status, otherwise flat list
+  const grouped = useMemo(() => {
+    if (sortBy !== 'status') return null
+    const groups: Record<string, Job[]> = {}
+    const order = sortDir === 'asc' ? statusOrder : [...statusOrder].reverse()
+    for (const status of order) {
+      const statusJobs = processedJobs.filter(j => j.status === status)
+      if (statusJobs.length > 0) groups[status] = statusJobs
+    }
+    return groups
+  }, [processedJobs, sortBy, sortDir, statusOrder])
+
+  // Unique statuses present in the data (for filter dropdown)
+  const availableStatuses = useMemo(() => {
+    const statuses = new Set<string>(jobs.map(j => j.status))
+    return statusOrder.filter(s => statuses.has(s))
+  }, [jobs, statusOrder])
 
   const toggleSelect = (jobId: string) => {
     setSelected(prev => {
@@ -55,14 +176,14 @@ export default function JobsList({
     })
   }
 
-  const toggleSelectAll = (statusJobs: Job[]) => {
+  const toggleSelectAll = (jobsToToggle: Job[]) => {
     setSelected(prev => {
       const next = new Set(prev)
-      const allSelected = statusJobs.every(j => next.has(j.id))
+      const allSelected = jobsToToggle.every(j => next.has(j.id))
       if (allSelected) {
-        statusJobs.forEach(j => next.delete(j.id))
+        jobsToToggle.forEach(j => next.delete(j.id))
       } else {
-        statusJobs.forEach(j => next.add(j.id))
+        jobsToToggle.forEach(j => next.add(j.id))
       }
       return next
     })
@@ -88,8 +209,63 @@ export default function JobsList({
     }
   }
 
+  const isFiltered = search.trim() || filterStatus
+  const showingCount = processedJobs.length
+
   return (
     <div>
+      {/* Toolbar: search, filter, sort */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        {/* Search */}
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search jobs…"
+          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+        />
+
+        {/* Status filter */}
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">All statuses</option>
+          {availableStatuses.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+
+        {/* Sort field */}
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as SortField)}
+          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="status">Sort by status</option>
+          <option value="added">Sort by added date</option>
+          <option value="title">Sort by job title</option>
+          <option value="company">Sort by company</option>
+        </select>
+
+        {/* Sort direction */}
+        <button
+          onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+        >
+          {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
+        </button>
+
+        {/* Filtered count */}
+        {isFiltered && (
+          <span className="text-xs text-gray-400 ml-auto">
+            Showing {showingCount} of {jobs.length}
+          </span>
+        )}
+      </div>
+
       {/* Bulk action bar */}
       {selected.size > 0 && (
         <div className="flex items-center gap-3 mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
@@ -133,86 +309,79 @@ export default function JobsList({
         </div>
       )}
 
-      {/* Grouped job list */}
-      <div className="space-y-6">
-        {Object.entries(grouped).map(([status, statusJobs]) => {
-          const allSelected = statusJobs.every(j => selected.has(j.id))
-          return (
-            <div key={status}>
-              <div className="flex items-center gap-2 mb-2">
+      {/* No results */}
+      {processedJobs.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+          <p className="text-gray-500 text-sm">No jobs match your filters.</p>
+        </div>
+      )}
+
+      {/* Grouped by status */}
+      {grouped && (
+        <div className="space-y-6">
+          {Object.entries(grouped).map(([status, statusJobs]) => {
+            const allSelected = statusJobs.every(j => selected.has(j.id))
+            return (
+              <div key={status}>
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() => toggleSelectAll(statusJobs)}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    {status} ({statusJobs.length})
+                  </h3>
+                </div>
+                <div className="space-y-2">
+                  {statusJobs.map((job: Job) => (
+                    <div key={job.id} className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(job.id)}
+                        onChange={() => toggleSelect(job.id)}
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                      />
+                      <JobCard job={job} status={status} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Flat list (non-status sort) */}
+      {!grouped && processedJobs.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              type="checkbox"
+              checked={processedJobs.every(j => selected.has(j.id))}
+              onChange={() => toggleSelectAll(processedJobs)}
+              className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              All ({processedJobs.length})
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {processedJobs.map((job: Job) => (
+              <div key={job.id} className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  checked={allSelected}
-                  onChange={() => toggleSelectAll(statusJobs)}
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  checked={selected.has(job.id)}
+                  onChange={() => toggleSelect(job.id)}
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
                 />
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  {status} ({statusJobs.length})
-                </h3>
+                <JobCard job={job} status={job.status} />
               </div>
-              <div className="space-y-2">
-                {statusJobs.map((job: Job) => (
-                  <div
-                    key={job.id}
-                    className="flex items-center gap-3"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(job.id)}
-                      onChange={() => toggleSelect(job.id)}
-                      className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
-                    />
-                    <Link
-                      href={`/jobs/${job.id}`}
-                      className="flex-1 block bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-gray-900 text-sm">
-                              {job.job_title}
-                            </span>
-                            {!job.is_live && (
-                              <span className="text-xs bg-red-50 text-red-500 px-1.5 py-0.5 rounded">
-                                Offline
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-500 mt-0.5">
-                            {job.company || job.companies?.name || '—'}
-                            <span className="text-gray-300 mx-1.5">·</span>
-                            <span className="text-xs text-gray-400">
-                              Added {new Date(job.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </span>
-                          </p>
-                          <div className="flex items-center gap-3 mt-2 flex-wrap">
-                            <ScoreBadge score={job.experience_match_rate} label="Exp" />
-                            <ScoreBadge score={job.job_match_rate} label="Role" />
-                            <ScoreBadge
-                              score={job.companies?.cultural_match_rate ?? null}
-                              label="Culture"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLOURS[status] ?? 'bg-gray-100 text-gray-600'}`}>
-                            {status}
-                          </span>
-                          {job.prioritisation_score !== null && (
-                            <span className="text-xs text-gray-400">
-                              Score: {Math.round(job.prioritisation_score)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

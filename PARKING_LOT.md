@@ -8,7 +8,9 @@
 - [ ] CV edit page after initial upload (in case PDF parsing needs manual fixes)
 - [x] Delete job listings (individually from job detail page + bulk via multi-select from jobs list)
 - [ ] Delete companies (individually from company detail page + bulk via multi-select from companies list)
-- [ ] Add sorting by status on jobs list page
+- [x] Add sorting (by status, added date, job title, company) on jobs list page
+- [x] Add status filtering on jobs list page
+- [x] Add free-text search (job title + company) on jobs list page
 - [x] Manual trigger for company culture analysis from job detail page (when missing)
 
 ## Medium Priority
