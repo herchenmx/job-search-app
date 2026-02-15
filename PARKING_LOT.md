@@ -1,7 +1,7 @@
 # Future Features & Improvements
 
 ## High Priority
-- [ ] Microsoft OAuth setup (similar to Google OAuth)
+- [x] Microsoft OAuth setup (similar to Google OAuth)
 - [x] CV upload confirmation flow: show parsed markdown, let user confirm/edit before saving
 - [x] Interview recording auto-purge after successful transcription
 - [x] Interview transcript review page before analysis runs
@@ -9,7 +9,7 @@
 - [ ] CV edit page after initial upload (in case PDF parsing needs manual fixes)
 
 ## Medium Priority
-- [ ] Rubric builder: conversational AI agent to help users create their rubrics
+- [x] Rubric builder: conversational AI agent to help users create their rubrics
 - [ ] Bulk job import from LinkedIn search URLs
 - [ ] Email notifications for job status changes
 - [ ] Calendar integration for interview scheduling
