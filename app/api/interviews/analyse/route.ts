@@ -98,21 +98,21 @@ export async function POST(request: NextRequest) {
   const { transcript_id } = await request.json()
   if (!transcript_id) return NextResponse.json({ error: 'transcript_id required' }, { status: 400 })
 
-  // Get the transcript
+  // Get the transcript — verify ownership via the parent job
   const { data: transcript } = await supabase
     .from('interview_transcripts')
-    .select('*')
+    .select('*, jobs!inner(job_description, job_title, company, user_id)')
     .eq('id', transcript_id)
     .single()
 
   if (!transcript) return NextResponse.json({ error: 'Transcript not found' }, { status: 404 })
 
-  // Get job description summary and user CV
-  const { data: job } = await supabase
-    .from('jobs')
-    .select('job_description, job_title, company')
-    .eq('id', transcript.job_id)
-    .single()
+  if (transcript.jobs.user_id !== user.id) {
+    return NextResponse.json({ error: 'Transcript not found' }, { status: 404 })
+  }
+
+  // Job data is already fetched via the join
+  const job = transcript.jobs as { job_description: string | null; job_title: string; company: string }
 
   const { data: profile } = await supabase
     .from('user_profiles')
