@@ -3,7 +3,7 @@
 ## 1. High Priority
 
 1. Microsoft OAuth setup (similar to Google OAuth)
-2. CV upload confirmation flow: show parsed markdown, let user confirm/edit before saving
+~~2. CV upload confirmation flow: show parsed markdown, let user confirm/edit before saving~~
 3. Interview recording auto-purge after successful transcription
 4. Interview transcript review page before analysis runs
 5. In-app bug reporting widget (for issues like failed transcription)
