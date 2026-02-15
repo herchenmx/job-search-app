@@ -114,6 +114,13 @@ export default function ProfilePage() {
     }
 
     // Only clear scores if the rubric text actually changed
+    if (field === 'culture' && cultureRubric !== origCulture) {
+      await supabase
+        .from('companies')
+        .update({ needs_culture_reanalysis: false, cultural_match_rate: null, cultural_match_insights: null })
+        .eq('user_id', user.id)
+    }
+
     if (field === 'role' && roleRubric !== origRole) {
       await supabase
         .from('jobs')
