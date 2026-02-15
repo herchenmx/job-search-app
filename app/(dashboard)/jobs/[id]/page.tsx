@@ -6,6 +6,7 @@ import JobStatusUpdater from './JobStatusUpdater'
 import InterviewSection from './InterviewSection'
 import CultureAnalysisButton from './CultureAnalysisButton'
 import DeleteJobButton from './DeleteJobButton'
+import CollapsibleSection from './CollapsibleSection'
 
 const STATUS_COLOURS: Record<string, string> = {
   'Interested':   'bg-green-100 text-green-800',
@@ -247,44 +248,36 @@ export default async function JobDetailPage({
         </Section>
       </div>
 
-      {/* Full Job Description */}
-      <div className="mb-4">
-        <Section title="Full Job Description">
-          <TextBlock text={job.job_description_full} />
-        </Section>
-      </div>
-
       {/* Experience Match Insights */}
       <div className="mb-4">
-        <Section title="Experience Match Insights">
-          <TextBlock text={job.experience_match_insights} />
-        </Section>
+        <CollapsibleSection title="Experience Match Insights" text={job.experience_match_insights} />
       </div>
 
       {/* Role Fit Insights */}
       <div className="mb-4">
-        <Section title="Role Fit Insights">
-          <TextBlock text={job.job_match_insights} />
-        </Section>
+        <CollapsibleSection title="Role Fit Insights" text={job.job_match_insights} />
       </div>
 
       {/* Cover Letter */}
       <div className="mb-4">
-        <Section title="Tailored Cover Letter">
-          <TextBlock text={job.tailored_covering_letter} />
-        </Section>
+        <CollapsibleSection title="Tailored Cover Letter" text={job.tailored_covering_letter} />
       </div>
 
       {/* Interviews */}
-      <Section title="Interviews">
-        <InterviewSection
-          jobId={job.id}
-          transcripts={transcripts ?? []}
-          analyses={analyses ?? []}
-          recordings={recordings ?? []}
-          maxInterview={maxInterview}
-        />
-      </Section>
+      <div className="mb-4">
+        <Section title="Interviews">
+          <InterviewSection
+            jobId={job.id}
+            transcripts={transcripts ?? []}
+            analyses={analyses ?? []}
+            recordings={recordings ?? []}
+            maxInterview={maxInterview}
+          />
+        </Section>
+      </div>
+
+      {/* Full Job Description */}
+      <CollapsibleSection title="Full Job Description" text={job.job_description_full} />
     </div>
   )
 }
