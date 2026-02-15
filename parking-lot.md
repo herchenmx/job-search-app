@@ -1,45 +1,36 @@
 # Future Features & Improvements
 
-## High Priority
+## 1. High Priority
 
-- Microsoft OAuth setup (similar to Google OAuth)
-- CV upload confirmation flow: show parsed markdown, let user confirm/edit before saving
-- Interview recording auto-purge after successful transcription
-- Interview transcript review page before analysis runs
-- In-app bug reporting widget (for issues like failed transcription)
-- CV edit page after initial upload (in case PDF parsing needs manual fixes)
+1. Microsoft OAuth setup (similar to Google OAuth)
+2. CV upload confirmation flow: show parsed markdown, let user confirm/edit before saving
+3. Interview recording auto-purge after successful transcription
+4. Interview transcript review page before analysis runs
+5. In-app bug reporting widget (for issues like failed transcription)
+6. CV edit page after initial upload (in case PDF parsing needs manual fixes)
 
-## Medium Priority
+## 2. Medium Priority
 
-- Rubric builder: conversational AI agent to help users create their rubrics
-- Bulk job import from LinkedIn search URLs
-- Email notifications for job status changes
-- Calendar integration for interview scheduling
-- Export job applications to CSV/Excel
+1. Rubric builder: conversational AI agent to help users create their rubrics
+2. Bulk job import from LinkedIn search URLs
+3. Email notifications for job status changes
+4. Calendar integration for interview scheduling
+5. Export job applications to CSV/Excel
 
-## Low Priority / Ideas
+## 3. Low Priority / Ideas
 
-- Dark mode
-- Mobile app (React Native?)
-- Collaborative features (share rubrics with other job seekers)
-- Analytics dashboard (application rate over time, response rates, etc.)
-- Integration with ATS systems (Greenhouse, Lever, etc.)
+1. Dark mode
+2. Mobile app (React Native?)
+3. Collaborative features (share rubrics with other job seekers)
+4. Analytics dashboard (application rate over time, response rates, etc.)
+5. Integration with ATS systems (Greenhouse, Lever, etc.)
+6. web clipping Chromium extension
 
-## Technical Debt / Refactoring
+## 4. Technical Debt / Refactoring
 
-- Add proper error boundaries
-- Improve loading states across all pages
-- Add optimistic UI updates
-- Add proper TypeScript strict mode
-- Add unit tests for scoring logic
-- Add E2E tests for critical flows
-
-## Current Sprint (What we're building now)
-
-- Project scaffold
-- Auth (Google OAuth)
-- Dashboard + navigation
-- Jobs list + detail pages
-- Add job manually
-- Profile & CV page with PDF upload
-- CV upload confirmation flow
+1. Add proper error boundaries
+2. Improve loading states across all pages
+3. Add optimistic UI updates
+4. Add proper TypeScript strict mode
+5. Add unit tests for scoring logic
+6. Add E2E tests for critical flows
