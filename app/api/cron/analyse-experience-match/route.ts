@@ -32,6 +32,11 @@ Your task is to:
 - Respond with ONLY the JSON object, no other text.`
 
 export async function GET(request: NextRequest) {
+  // Kill switch — set CRONS_PAUSED=true in Vercel env to pause all cron jobs
+  if (process.env.CRONS_PAUSED === 'true') {
+    return NextResponse.json({ message: 'Crons are paused' })
+  }
+
   const authHeader = request.headers.get('authorization')
   if (
     process.env.NODE_ENV === 'production' &&

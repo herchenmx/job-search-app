@@ -112,6 +112,11 @@ async function scrapeWithBrightData(urls: string[]): Promise<BrightDataJob[]> {
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  // Kill switch — set CRONS_PAUSED=true in Vercel env to pause all cron jobs
+  if (process.env.CRONS_PAUSED === 'true') {
+    return NextResponse.json({ message: 'Crons are paused' })
+  }
+
   // Verify this is called by Vercel cron (or allow in dev)
   const authHeader = request.headers.get('authorization')
   if (
