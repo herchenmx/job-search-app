@@ -1,0 +1,467 @@
+'use client'
+
+import { useState, useMemo } from 'react'
+import { AdminTask, AdminTaskStatus, AdminTaskPriority, AdminTaskCategory } from '@/types'
+
+const STATUS_OPTIONS: AdminTaskStatus[] = ['backlog', 'in-progress', 'done']
+const PRIORITY_OPTIONS: AdminTaskPriority[] = ['high', 'medium', 'low']
+const CATEGORY_OPTIONS: AdminTaskCategory[] = ['feature', 'bug', 'improvement', 'debt']
+
+const STATUS_COLOURS: Record<AdminTaskStatus, string> = {
+  'backlog': 'bg-gray-100 text-gray-600',
+  'in-progress': 'bg-blue-100 text-blue-700',
+  'done': 'bg-green-100 text-green-700',
+}
+
+const PRIORITY_COLOURS: Record<AdminTaskPriority, string> = {
+  'high': 'bg-red-100 text-red-700',
+  'medium': 'bg-yellow-100 text-yellow-700',
+  'low': 'bg-gray-100 text-gray-500',
+}
+
+const CATEGORY_ICONS: Record<AdminTaskCategory, string> = {
+  'feature': '✨',
+  'bug': '🐛',
+  'improvement': '📈',
+  'debt': '🔧',
+}
+
+const STATUS_LABELS: Record<AdminTaskStatus, string> = {
+  'backlog': 'Backlog',
+  'in-progress': 'In Progress',
+  'done': 'Done',
+}
+
+const NEXT_STATUS: Record<AdminTaskStatus, AdminTaskStatus> = {
+  'backlog': 'in-progress',
+  'in-progress': 'done',
+  'done': 'backlog',
+}
+
+export default function AdminTaskList({ initialTasks }: { initialTasks: AdminTask[] }) {
+  const [tasks, setTasks] = useState<AdminTask[]>(initialTasks)
+  const [filterStatus, setFilterStatus] = useState<string>('')
+  const [filterCategory, setFilterCategory] = useState<string>('')
+  const [search, setSearch] = useState('')
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Add form state
+  const [newTitle, setNewTitle] = useState('')
+  const [newDescription, setNewDescription] = useState('')
+  const [newStatus, setNewStatus] = useState<AdminTaskStatus>('backlog')
+  const [newPriority, setNewPriority] = useState<AdminTaskPriority>('medium')
+  const [newCategory, setNewCategory] = useState<AdminTaskCategory>('feature')
+
+  // Edit form state
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editStatus, setEditStatus] = useState<AdminTaskStatus>('backlog')
+  const [editPriority, setEditPriority] = useState<AdminTaskPriority>('medium')
+  const [editCategory, setEditCategory] = useState<AdminTaskCategory>('feature')
+
+  // Filter pipeline
+  const filteredTasks = useMemo(() => {
+    let result = [...tasks]
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(t =>
+        t.title.toLowerCase().includes(q) ||
+        (t.description || '').toLowerCase().includes(q)
+      )
+    }
+    if (filterStatus) result = result.filter(t => t.status === filterStatus)
+    if (filterCategory) result = result.filter(t => t.category === filterCategory)
+    return result
+  }, [tasks, search, filterStatus, filterCategory])
+
+  // Group by status
+  const grouped = useMemo(() => {
+    const groups: Record<string, AdminTask[]> = {}
+    for (const status of STATUS_OPTIONS) {
+      const statusTasks = filteredTasks.filter(t => t.status === status)
+      if (statusTasks.length > 0) groups[status] = statusTasks
+    }
+    return groups
+  }, [filteredTasks])
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const s of STATUS_OPTIONS) c[s] = tasks.filter(t => t.status === s).length
+    return c
+  }, [tasks])
+
+  // CRUD handlers
+  const handleCreate = async () => {
+    if (!newTitle.trim() || saving) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTitle,
+          description: newDescription || null,
+          status: newStatus,
+          priority: newPriority,
+          category: newCategory,
+        }),
+      })
+      if (res.ok) {
+        const task: AdminTask = await res.json()
+        setTasks(prev => [...prev, task])
+        setNewTitle('')
+        setNewDescription('')
+        setNewStatus('backlog')
+        setNewPriority('medium')
+        setNewCategory('feature')
+        setShowAddForm(false)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleUpdate = async (id: string, updates: Partial<AdminTask>) => {
+    try {
+      const res = await fetch('/api/admin/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      })
+      if (res.ok) {
+        const updated: AdminTask = await res.json()
+        setTasks(prev => prev.map(t => t.id === id ? updated : t))
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !editTitle.trim() || saving) return
+    setSaving(true)
+    await handleUpdate(editingId, {
+      title: editTitle,
+      description: editDescription || null,
+      status: editStatus,
+      priority: editPriority,
+      category: editCategory,
+    })
+    setEditingId(null)
+    setSaving(false)
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch('/api/admin/tasks', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (res.ok) {
+        setTasks(prev => prev.filter(t => t.id !== id))
+        setDeletingId(null)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleStatusCycle = async (task: AdminTask) => {
+    const next = NEXT_STATUS[task.status]
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: next } : t))
+    await handleUpdate(task.id, { status: next })
+  }
+
+  const startEdit = (task: AdminTask) => {
+    setEditingId(task.id)
+    setEditTitle(task.title)
+    setEditDescription(task.description || '')
+    setEditStatus(task.status)
+    setEditPriority(task.priority)
+    setEditCategory(task.category)
+  }
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search tasks…"
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 text-gray-900"
+        />
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">All statuses</option>
+          {STATUS_OPTIONS.map(s => (
+            <option key={s} value={s}>{STATUS_LABELS[s]} ({counts[s] || 0})</option>
+          ))}
+        </select>
+        <select
+          value={filterCategory}
+          onChange={e => setFilterCategory(e.target.value)}
+          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">All categories</option>
+          {CATEGORY_OPTIONS.map(c => (
+            <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
+          ))}
+        </select>
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="ml-auto bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+        >
+          {showAddForm ? 'Cancel' : '+ New task'}
+        </button>
+      </div>
+
+      {/* Add form */}
+      {showAddForm && (
+        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">New Task</h3>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              placeholder="Task title"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            />
+            <textarea
+              value={newDescription}
+              onChange={e => setNewDescription(e.target.value)}
+              placeholder="Description (optional)"
+              rows={2}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 resize-none"
+            />
+            <div className="flex items-center gap-3 flex-wrap">
+              <select
+                value={newStatus}
+                onChange={e => setNewStatus(e.target.value as AdminTaskStatus)}
+                className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {STATUS_OPTIONS.map(s => (
+                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                ))}
+              </select>
+              <select
+                value={newPriority}
+                onChange={e => setNewPriority(e.target.value as AdminTaskPriority)}
+                className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {PRIORITY_OPTIONS.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <select
+                value={newCategory}
+                onChange={e => setNewCategory(e.target.value as AdminTaskCategory)}
+                className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {CATEGORY_OPTIONS.map(c => (
+                  <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleCreate}
+                disabled={!newTitle.trim() || saving}
+                className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {saving ? 'Adding…' : 'Add task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {tasks.length === 0 && !showAddForm && (
+        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+          <p className="text-4xl mb-3">📋</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">No tasks yet</h3>
+          <p className="text-gray-500 text-sm mb-4">
+            Create tasks to track features, bugs, and improvements.
+          </p>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="text-blue-600 text-sm font-medium hover:underline"
+          >
+            Create your first task →
+          </button>
+        </div>
+      )}
+
+      {/* No results from filtering */}
+      {tasks.length > 0 && filteredTasks.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+          <p className="text-gray-500 text-sm">No tasks match your filters.</p>
+        </div>
+      )}
+
+      {/* Grouped task list */}
+      <div className="space-y-6">
+        {Object.entries(grouped).map(([status, statusTasks]) => (
+          <div key={status}>
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-sm font-semibold text-gray-700">
+                {STATUS_LABELS[status as AdminTaskStatus]}
+              </h3>
+              <span className="text-xs text-gray-400">{statusTasks.length}</span>
+            </div>
+
+            <div className="space-y-2">
+              {statusTasks.map(task => (
+                <div
+                  key={task.id}
+                  className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors"
+                >
+                  {editingId === task.id ? (
+                    /* Edit mode */
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={e => setEditTitle(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      />
+                      <textarea
+                        value={editDescription}
+                        onChange={e => setEditDescription(e.target.value)}
+                        placeholder="Description (optional)"
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 resize-none"
+                      />
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <select
+                          value={editStatus}
+                          onChange={e => setEditStatus(e.target.value as AdminTaskStatus)}
+                          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {STATUS_OPTIONS.map(s => (
+                            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={editPriority}
+                          onChange={e => setEditPriority(e.target.value as AdminTaskPriority)}
+                          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {PRIORITY_OPTIONS.map(p => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={editCategory}
+                          onChange={e => setEditCategory(e.target.value as AdminTaskCategory)}
+                          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {CATEGORY_OPTIONS.map(c => (
+                            <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
+                          ))}
+                        </select>
+                        <div className="flex items-center gap-2 ml-auto">
+                          <button
+                            onClick={handleSaveEdit}
+                            disabled={!editTitle.trim() || saving}
+                            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+                          >
+                            {saving ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* View mode */
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-sm font-medium text-gray-900">{task.title}</span>
+                          <button
+                            onClick={() => handleStatusCycle(task)}
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLOURS[task.status]}`}
+                            title={`Click to move to ${STATUS_LABELS[NEXT_STATUS[task.status]]}`}
+                          >
+                            {STATUS_LABELS[task.status]}
+                          </button>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLOURS[task.priority]}`}>
+                            {task.priority}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {CATEGORY_ICONS[task.category]} {task.category}
+                          </span>
+                        </div>
+                        {task.description && (
+                          <p className="text-sm text-gray-500 line-clamp-2">{task.description}</p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => startEdit(task)}
+                          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        {deletingId === task.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleDelete(task.id)}
+                              className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeletingId(null)}
+                              className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeletingId(task.id)}
+                            className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Summary footer */}
+      {tasks.length > 0 && (
+        <div className="mt-6 text-xs text-gray-400 text-center">
+          {counts['backlog'] || 0} backlog · {counts['in-progress'] || 0} in progress · {counts['done'] || 0} done · {tasks.length} total
+        </div>
+      )}
+    </div>
+  )
+}

@@ -114,3 +114,19 @@ export interface JobSearch {
   created_at: string
   updated_at: string
 }
+
+export type AdminTaskStatus = 'backlog' | 'in-progress' | 'done'
+export type AdminTaskPriority = 'low' | 'medium' | 'high'
+export type AdminTaskCategory = 'feature' | 'bug' | 'improvement' | 'debt'
+
+export interface AdminTask {
+  id: string
+  title: string
+  description: string | null
+  status: AdminTaskStatus
+  priority: AdminTaskPriority
+  category: AdminTaskCategory
+  position: number
+  created_at: string
+  updated_at: string
+}

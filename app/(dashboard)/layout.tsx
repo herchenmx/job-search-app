@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { LogOut } from 'lucide-react'
+import { isAdmin } from '@/lib/admin'
 
 export default async function DashboardLayout({
   children,
@@ -29,6 +30,12 @@ export default async function DashboardLayout({
           <NavLink href="/searches" label="Searches" icon="🔍" />
           <NavLink href="/profile/cv" label="CV" icon="📄" />
           <NavLink href="/profile" label="Profile" icon="👤" />
+          {isAdmin(user) && (
+            <>
+              <div className="my-2 border-t border-gray-200" />
+              <NavLink href="/admin" label="Admin" icon="⚙️" />
+            </>
+          )}
         </nav>
 
         <div className="p-3 border-t border-gray-200">
