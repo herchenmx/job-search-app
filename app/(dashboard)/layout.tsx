@@ -23,6 +23,7 @@ export default async function DashboardLayout({
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
+          <NavLink href="/dashboard" label="Dashboard" icon="📊" />
           <NavLink href="/jobs" label="Jobs" icon="💼" />
           <NavLink href="/companies" label="Companies" icon="🏢" />
           <NavLink href="/searches" label="Searches" icon="🔍" />
