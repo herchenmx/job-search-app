@@ -23,13 +23,22 @@ export default function CultureRubricPage() {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [isComplete, setIsComplete] = useState(false)
   const [rubricDraft, setRubricDraft] = useState('')
+  const [origRubric, setOrigRubric] = useState<string | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
-  // Load existing conversation on mount
+  // Load existing conversation and saved rubric on mount
   useEffect(() => {
     async function loadConversation() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+
+      // Load the currently saved rubric for diff check
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('culture_preferences_rubric')
+        .eq('user_id', user.id)
+        .single()
+      setOrigRubric(profile?.culture_preferences_rubric ?? null)
 
       const { data } = await supabase
         .from('ai_conversations')
@@ -140,11 +149,14 @@ export default function CultureRubricPage() {
           .insert({ user_id: user.id, culture_preferences_rubric: content })
       }
 
-      // Clear all culture scores so cron re-analyses with updated rubric
-      await supabase
-        .from('companies')
-        .update({ needs_culture_reanalysis: false, cultural_match_rate: null, cultural_match_insights: null })
-        .eq('user_id', user.id)
+      // Only clear scores if the rubric actually changed
+      if (content !== (origRubric ?? '')) {
+        await supabase
+          .from('companies')
+          .update({ needs_culture_reanalysis: false, cultural_match_rate: null, cultural_match_insights: null })
+          .eq('user_id', user.id)
+        setOrigRubric(content)
+      }
 
       setSaveMsg('Saved!')
       setTimeout(() => router.push('/profile'), 1200)
