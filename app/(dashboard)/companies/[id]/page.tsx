@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Company, Job } from '@/types'
+import DeleteCompanyButton from './DeleteCompanyButton'
 
 export default async function CompanyDetailPage({
   params,
@@ -42,16 +43,19 @@ export default async function CompanyDetailPage({
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-gray-900">{company.name}</h2>
-            {company.linkedin_page && (
-              <a
-                href={company.linkedin_page}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline mt-1 inline-block"
-              >
-                View on LinkedIn ↗
-              </a>
-            )}
+            <div className="flex items-center gap-4 mt-1">
+              {company.linkedin_page && (
+                <a
+                  href={company.linkedin_page}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  View on LinkedIn ↗
+                </a>
+              )}
+              <DeleteCompanyButton companyId={company.id} />
+            </div>
           </div>
           {score !== null && (
             <div className="text-center">
