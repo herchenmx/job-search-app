@@ -75,7 +75,7 @@ export default function NewJobPage() {
               onChange={(e) => setJobTitle(e.target.value)}
               required
               placeholder="e.g. Senior Product Manager"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -89,7 +89,7 @@ export default function NewJobPage() {
               onChange={(e) => setCompany(e.target.value)}
               required
               placeholder="e.g. Acme GmbH"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -103,7 +103,7 @@ export default function NewJobPage() {
               onChange={(e) => setPostingUrl(e.target.value)}
               required
               placeholder="https://www.linkedin.com/jobs/view/..."
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-gray-400 mt-1">Must be a LinkedIn URL</p>
           </div>
@@ -118,7 +118,7 @@ export default function NewJobPage() {
               onChange={(e) => setSalaryExpectation(e.target.value)}
               placeholder="e.g. 95000"
               min="0"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
