@@ -3,6 +3,7 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { parseAnalysisResponse } from '@/lib/scoring'
 
 const SYSTEM_PROMPT = `You are an expert job application analyst specializing in matching candidate profiles to job requirements.
 
@@ -107,27 +108,14 @@ export async function GET(request: NextRequest) {
       const data = await response.json()
       const text = data.choices[0].message.content
 
-      let parsed: { experienceMatchRate: number; experienceMatchInsights: string }
-      try {
-        const jsonMatch = text.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) throw new Error('No JSON found')
-        parsed = JSON.parse(jsonMatch[0])
-      } catch {
-        results.errors.push(`${job.company}: Could not parse JSON response`)
+      const parsed = parseAnalysisResponse(text, 'experienceMatchRate', 'experienceMatchInsights')
+      if ('error' in parsed) {
+        results.errors.push(`${job.company}: ${parsed.error}`)
         continue
       }
 
-      const matchRate = Number(String(parsed.experienceMatchRate).replace('%', ''))
-      const insights = String(parsed.experienceMatchInsights)
-        .replaceAll('"', '')
-        .replaceAll('**', '')
-        .replaceAll('*', '')
-        .substring(0, 2000)
-
-      if (isNaN(matchRate)) {
-        results.errors.push(`${job.company}: Invalid match rate`)
-        continue
-      }
+      const matchRate = parsed.rate
+      const insights = parsed.insights
 
       const { error: updateError } = await supabase
         .from('jobs')

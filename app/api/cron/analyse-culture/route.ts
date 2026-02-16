@@ -3,6 +3,7 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { parseAnalysisResponse } from '@/lib/scoring'
 
 const SYSTEM_PROMPT = `You are an expert job application analyst specializing in matching candidate's organisational culture preferences with companies.
 
@@ -138,27 +139,14 @@ the Cultural Preferences are here: ${profile.culture_preferences_rubric}`,
       }
 
       // Parse JSON from Claude's response
-      let parsed: { culturalMatchRate: number; culturalMatchInsights: string }
-      try {
-        const jsonMatch = textContent.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) throw new Error('No JSON found')
-        parsed = JSON.parse(jsonMatch[0])
-      } catch {
-        results.errors.push(`${company.name}: Could not parse JSON response`)
+      const parsed = parseAnalysisResponse(textContent, 'culturalMatchRate', 'culturalMatchInsights')
+      if ('error' in parsed) {
+        results.errors.push(`${company.name}: ${parsed.error}`)
         continue
       }
 
-      const matchRate = Number(parsed.culturalMatchRate)
-      const insights = String(parsed.culturalMatchInsights)
-        .replaceAll('"', '')
-        .replaceAll('**', '')
-        .replaceAll('*', '')
-        .substring(0, 2000)
-
-      if (isNaN(matchRate)) {
-        results.errors.push(`${company.name}: Invalid match rate`)
-        continue
-      }
+      const matchRate = parsed.rate
+      const insights = parsed.insights
 
       // 4. Save back to companies table
       const { error: updateError } = await supabase
