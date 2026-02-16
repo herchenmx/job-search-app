@@ -2,9 +2,17 @@
 
 import { useState, useMemo } from 'react'
 import { AdminTask, AdminTaskStatus, AdminTaskPriority, AdminTaskCategory } from '@/types'
-import { Commit } from './CommitHistory'
 
-const STATUS_OPTIONS: AdminTaskStatus[] = ['backlog', 'in-progress', 'done']
+export interface Commit {
+  sha: string
+  shortSha: string
+  message: string
+  date: string
+  url: string
+  branch: string | null
+}
+
+const STATUS_OPTIONS: AdminTaskStatus[] = ['backlog', 'in-progress', 'done', 'archived']
 const PRIORITY_OPTIONS: AdminTaskPriority[] = ['high', 'medium', 'low']
 const CATEGORY_OPTIONS: AdminTaskCategory[] = ['feature', 'bug', 'improvement', 'debt']
 
@@ -12,6 +20,7 @@ const STATUS_COLOURS: Record<AdminTaskStatus, string> = {
   'backlog': 'bg-gray-100 text-gray-600',
   'in-progress': 'bg-blue-100 text-blue-700',
   'done': 'bg-green-100 text-green-700',
+  'archived': 'bg-amber-100 text-amber-700',
 }
 
 const PRIORITY_COLOURS: Record<AdminTaskPriority, string> = {
@@ -31,15 +40,20 @@ const STATUS_LABELS: Record<AdminTaskStatus, string> = {
   'backlog': 'Backlog',
   'in-progress': 'In Progress',
   'done': 'Done',
+  'archived': 'Archived',
 }
 
 const NEXT_STATUS: Record<AdminTaskStatus, AdminTaskStatus> = {
   'backlog': 'in-progress',
   'in-progress': 'done',
-  'done': 'backlog',
+  'done': 'archived',
+  'archived': 'backlog',
 }
 
 const GITHUB_REPO = 'https://github.com/herchenmx/job-search-app'
+
+// Sections that are collapsible
+const COLLAPSIBLE_SECTIONS: AdminTaskStatus[] = ['backlog', 'done']
 
 export default function AdminTaskList({
   initialTasks,
@@ -56,6 +70,13 @@ export default function AdminTaskList({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkAction, setBulkAction] = useState(false)
+
+  // Collapsible sections state
+  const [collapsedSections, setCollapsedSections] = useState<Set<AdminTaskStatus>>(new Set())
 
   // Add form state
   const [newTitle, setNewTitle] = useState('')
@@ -129,6 +150,105 @@ export default function AdminTaskList({
     for (const s of STATUS_OPTIONS) c[s] = tasks.filter(t => t.status === s).length
     return c
   }, [tasks])
+
+  // Global task numbering: assign a sequential number to each task based on position in the full list
+  const taskNumberMap = useMemo(() => {
+    const map = new Map<string, number>()
+    tasks.forEach((t, i) => map.set(t.id, i + 1))
+    return map
+  }, [tasks])
+
+  // Multi-select helpers
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const selectAllInStatus = (status: AdminTaskStatus) => {
+    const ids = filteredTasks.filter(t => t.status === status).map(t => t.id)
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      const allSelected = ids.every(id => next.has(id))
+      if (allSelected) {
+        ids.forEach(id => next.delete(id))
+      } else {
+        ids.forEach(id => next.add(id))
+      }
+      return next
+    })
+  }
+
+  const clearSelection = () => {
+    setSelectedIds(new Set())
+    setBulkAction(false)
+  }
+
+  // Selected tasks that are NOT done (eligible for bulk status change)
+  const selectedForStatusChange = useMemo(() => {
+    return tasks.filter(t => selectedIds.has(t.id) && t.status !== 'done')
+  }, [tasks, selectedIds])
+
+  const handleBulkStatusChange = async (newStatus: AdminTaskStatus) => {
+    const eligibleIds = selectedForStatusChange.map(t => t.id)
+    if (eligibleIds.length === 0) return
+    setSaving(true)
+    try {
+      await Promise.all(
+        eligibleIds.map(id =>
+          fetch('/api/admin/tasks', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, status: newStatus }),
+          })
+        )
+      )
+      setTasks(prev =>
+        prev.map(t => eligibleIds.includes(t.id) ? { ...t, status: newStatus } : t)
+      )
+      clearSelection()
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    setSaving(true)
+    try {
+      await Promise.all(
+        ids.map(id =>
+          fetch('/api/admin/tasks', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id }),
+          })
+        )
+      )
+      setTasks(prev => prev.filter(t => !selectedIds.has(t.id)))
+      clearSelection()
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Toggle collapsed section
+  const toggleCollapse = (status: AdminTaskStatus) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(status)) next.delete(status)
+      else next.add(status)
+      return next
+    })
+  }
 
   // CRUD handlers
   const handleCreate = async () => {
@@ -257,6 +377,8 @@ export default function AdminTaskList({
     })
   }, [commits, shaToTaskId, editCommitShas, editingId])
 
+  const isMultiSelectMode = selectedIds.size > 0
+
   return (
     <div>
       {/* Toolbar */}
@@ -295,6 +417,66 @@ export default function AdminTaskList({
           {showAddForm ? 'Cancel' : '+ New task'}
         </button>
       </div>
+
+      {/* Bulk action bar */}
+      {isMultiSelectMode && (
+        <div className="flex items-center gap-3 mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex-wrap">
+          <span className="text-sm font-medium text-blue-900">
+            {selectedIds.size} task{selectedIds.size > 1 ? 's' : ''} selected
+          </span>
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
+            {selectedForStatusChange.length > 0 && (
+              <>
+                <span className="text-xs text-blue-600">Move to:</span>
+                {STATUS_OPTIONS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => handleBulkStatusChange(s)}
+                    disabled={saving}
+                    className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors disabled:opacity-50 ${STATUS_COLOURS[s]} hover:opacity-80`}
+                  >
+                    {STATUS_LABELS[s]}
+                  </button>
+                ))}
+                <span className="text-gray-300">|</span>
+              </>
+            )}
+            {!bulkAction ? (
+              <button
+                onClick={() => setBulkAction(true)}
+                disabled={saving}
+                className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors disabled:opacity-50"
+              >
+                Delete selected
+              </button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-red-600">Delete {selectedIds.size} task{selectedIds.size > 1 ? 's' : ''}?</span>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={saving}
+                  className="text-xs text-red-700 font-semibold hover:text-red-800 transition-colors disabled:opacity-50"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setBulkAction(false)}
+                  className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  No
+                </button>
+              </div>
+            )}
+            <span className="text-gray-300">|</span>
+            <button
+              onClick={clearSelection}
+              className="text-xs text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Clear selection
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add form */}
       {showAddForm && (
@@ -390,181 +572,234 @@ export default function AdminTaskList({
 
       {/* Grouped task list */}
       <div className="space-y-6">
-        {Object.entries(grouped).map(([status, statusTasks]) => (
-          <div key={status}>
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-sm font-semibold text-gray-700">
-                {STATUS_LABELS[status as AdminTaskStatus]}
-              </h3>
-              <span className="text-xs text-gray-400">{statusTasks.length}</span>
-            </div>
+        {Object.entries(grouped).map(([status, statusTasks]) => {
+          const typedStatus = status as AdminTaskStatus
+          const isCollapsible = COLLAPSIBLE_SECTIONS.includes(typedStatus)
+          const isCollapsed = collapsedSections.has(typedStatus)
+          const allInStatusSelected = statusTasks.every(t => selectedIds.has(t.id))
 
-            <div className="space-y-2">
-              {statusTasks.map(task => (
-                <div
-                  key={task.id}
-                  className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors"
+          return (
+            <div key={status}>
+              <div className="flex items-center gap-2 mb-2">
+                {isCollapsible ? (
+                  <button
+                    onClick={() => toggleCollapse(typedStatus)}
+                    className="flex items-center gap-2 group"
+                  >
+                    <svg
+                      className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">
+                      {STATUS_LABELS[typedStatus]}
+                    </h3>
+                  </button>
+                ) : (
+                  <h3 className="text-sm font-semibold text-gray-700">
+                    {STATUS_LABELS[typedStatus]}
+                  </h3>
+                )}
+                <span className="text-xs text-gray-400">{statusTasks.length}</span>
+                {/* Group select all checkbox */}
+                <button
+                  onClick={() => selectAllInStatus(typedStatus)}
+                  className="ml-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  title={allInStatusSelected ? 'Deselect all in this group' : 'Select all in this group'}
                 >
-                  {editingId === task.id ? (
-                    /* Edit mode */
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={e => setEditTitle(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                      />
-                      <textarea
-                        value={editDescription}
-                        onChange={e => setEditDescription(e.target.value)}
-                        placeholder="Description (optional)"
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 resize-none"
-                      />
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <select
-                          value={editStatus}
-                          onChange={e => setEditStatus(e.target.value as AdminTaskStatus)}
-                          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {STATUS_OPTIONS.map(s => (
-                            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                          ))}
-                        </select>
-                        <select
-                          value={editPriority}
-                          onChange={e => setEditPriority(e.target.value as AdminTaskPriority)}
-                          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {PRIORITY_OPTIONS.map(p => (
-                            <option key={p} value={p}>{p}</option>
-                          ))}
-                        </select>
-                        <select
-                          value={editCategory}
-                          onChange={e => setEditCategory(e.target.value as AdminTaskCategory)}
-                          className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          {CATEGORY_OPTIONS.map(c => (
-                            <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
-                          ))}
-                        </select>
-                        <div className="flex items-center gap-2 ml-auto">
-                          <button
-                            onClick={handleSaveEdit}
-                            disabled={!editTitle.trim() || saving}
-                            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
-                          >
-                            {saving ? 'Saving…' : 'Save'}
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                      <CommitPicker
-                        selected={editCommitShas}
-                        available={availableForEdit}
-                        commitMap={commitMap}
-                        onAdd={addCommitToEdit}
-                        onRemove={removeCommitFromEdit}
-                      />
-                    </div>
-                  ) : (
-                    /* View mode */
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-sm font-medium text-gray-900">{task.title}</span>
-                          <button
-                            onClick={() => handleStatusCycle(task)}
-                            className={`text-xs px-2 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLOURS[task.status]}`}
-                            title={`Click to move to ${STATUS_LABELS[NEXT_STATUS[task.status]]}`}
-                          >
-                            {STATUS_LABELS[task.status]}
-                          </button>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLOURS[task.priority]}`}>
-                            {task.priority}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {CATEGORY_ICONS[task.category]} {task.category}
-                          </span>
-                        </div>
-                        {task.description && (
-                          <p className="text-sm text-gray-500 line-clamp-2">{task.description}</p>
-                        )}
-                        {/* Linked commits */}
-                        {task.commit_shas && task.commit_shas.length > 0 && (
-                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            <span className="text-xs text-gray-400">Commits:</span>
-                            {task.commit_shas.map(sha => {
-                              const commit = commitMap.get(sha)
-                              return (
-                                <a
-                                  key={sha}
-                                  href={commit?.url || `${GITHUB_REPO}/commit/${sha}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs font-mono bg-gray-50 text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded border border-gray-200 transition-colors"
-                                  title={commit?.message || sha}
+                  {allInStatusSelected ? 'Deselect all' : 'Select all'}
+                </button>
+              </div>
+
+              {!isCollapsed && (
+                <div className="space-y-2">
+                  {statusTasks.map(task => {
+                    const taskNum = taskNumberMap.get(task.id)
+                    const isSelected = selectedIds.has(task.id)
+
+                    return (
+                      <div
+                        key={task.id}
+                        className={`bg-white border rounded-xl p-4 transition-colors ${
+                          isSelected
+                            ? 'border-blue-300 bg-blue-50/30'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {editingId === task.id ? (
+                          /* Edit mode */
+                          <div className="space-y-3">
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={e => setEditTitle(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                            />
+                            <textarea
+                              value={editDescription}
+                              onChange={e => setEditDescription(e.target.value)}
+                              placeholder="Description (optional)"
+                              rows={2}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 resize-none"
+                            />
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <select
+                                value={editStatus}
+                                onChange={e => setEditStatus(e.target.value as AdminTaskStatus)}
+                                className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {STATUS_OPTIONS.map(s => (
+                                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                                ))}
+                              </select>
+                              <select
+                                value={editPriority}
+                                onChange={e => setEditPriority(e.target.value as AdminTaskPriority)}
+                                className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {PRIORITY_OPTIONS.map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </select>
+                              <select
+                                value={editCategory}
+                                onChange={e => setEditCategory(e.target.value as AdminTaskCategory)}
+                                className="text-sm text-gray-900 border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {CATEGORY_OPTIONS.map(c => (
+                                  <option key={c} value={c}>{CATEGORY_ICONS[c]} {c}</option>
+                                ))}
+                              </select>
+                              <div className="flex items-center gap-2 ml-auto">
+                                <button
+                                  onClick={handleSaveEdit}
+                                  disabled={!editTitle.trim() || saving}
+                                  className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
                                 >
-                                  {sha}
-                                </a>
-                              )
-                            })}
-                          </div>
-                        )}
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => startEdit(task)}
-                          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        {deletingId === task.id ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleDelete(task.id)}
-                              className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => setDeletingId(null)}
-                              className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                            >
-                              No
-                            </button>
+                                  {saving ? 'Saving…' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={() => setEditingId(null)}
+                                  className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                            <CommitPicker
+                              selected={editCommitShas}
+                              available={availableForEdit}
+                              commitMap={commitMap}
+                              onAdd={addCommitToEdit}
+                              onRemove={removeCommitFromEdit}
+                            />
                           </div>
                         ) : (
-                          <button
-                            onClick={() => setDeletingId(task.id)}
-                            className="text-xs text-red-500 hover:text-red-700 transition-colors"
-                          >
-                            Delete
-                          </button>
+                          /* View mode */
+                          <div className="flex items-start justify-between gap-3">
+                            {/* Checkbox for multi-select */}
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelect(task.id)}
+                              className="mt-1 shrink-0 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className="text-xs font-mono text-gray-400 shrink-0">#{taskNum}</span>
+                                <span className="text-sm font-medium text-gray-900">{task.title}</span>
+                                <button
+                                  onClick={() => handleStatusCycle(task)}
+                                  className={`text-xs px-2 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLOURS[task.status]}`}
+                                  title={`Click to move to ${STATUS_LABELS[NEXT_STATUS[task.status]]}`}
+                                >
+                                  {STATUS_LABELS[task.status]}
+                                </button>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLOURS[task.priority]}`}>
+                                  {task.priority}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {CATEGORY_ICONS[task.category]} {task.category}
+                                </span>
+                              </div>
+                              {task.description && (
+                                <p className="text-sm text-gray-500 line-clamp-2">{task.description}</p>
+                              )}
+                              {/* Linked commits */}
+                              {task.commit_shas && task.commit_shas.length > 0 && (
+                                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                  <span className="text-xs text-gray-400">Commits:</span>
+                                  {task.commit_shas.map(sha => {
+                                    const commit = commitMap.get(sha)
+                                    return (
+                                      <a
+                                        key={sha}
+                                        href={commit?.url || `${GITHUB_REPO}/commit/${sha}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs font-mono bg-gray-50 text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded border border-gray-200 transition-colors"
+                                        title={commit?.message || sha}
+                                      >
+                                        {sha}
+                                      </a>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              <p className="text-xs text-gray-400 mt-1">
+                                {new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                onClick={() => startEdit(task)}
+                                className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                              >
+                                Edit
+                              </button>
+                              {deletingId === task.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleDelete(task.id)}
+                                    className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    onClick={() => setDeletingId(null)}
+                                    className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                                  >
+                                    No
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setDeletingId(task.id)}
+                                  className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  )}
+                    )
+                  })}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Summary footer */}
       {tasks.length > 0 && (
         <div className="mt-6 text-xs text-gray-400 text-center">
-          {counts['backlog'] || 0} backlog · {counts['in-progress'] || 0} in progress · {counts['done'] || 0} done · {tasks.length} total
+          {counts['backlog'] || 0} backlog · {counts['in-progress'] || 0} in progress · {counts['done'] || 0} done · {counts['archived'] || 0} archived · {tasks.length} total
         </div>
       )}
     </div>

@@ -115,7 +115,7 @@ export interface JobSearch {
   updated_at: string
 }
 
-export type AdminTaskStatus = 'backlog' | 'in-progress' | 'done'
+export type AdminTaskStatus = 'backlog' | 'in-progress' | 'done' | 'archived'
 export type AdminTaskPriority = 'low' | 'medium' | 'high'
 export type AdminTaskCategory = 'feature' | 'bug' | 'improvement' | 'debt'
 

@@ -2,13 +2,13 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { isAdmin } from '@/lib/admin'
 import { AdminTask } from '@/types'
-import AdminTaskList, { Commit } from './AdminTaskList'
+import CommitHistory, { Commit } from '../CommitHistory'
 import Link from 'next/link'
 
 const REPO = 'herchenmx/job-search-app'
 const COMMITS_PER_PAGE = 30
 
-async function fetchCommits(): Promise<Commit[]> {
+async function fetchCommits(): Promise<{ commits: Commit[]; hasMore: boolean }> {
   try {
     const [commitsRes, branchesRes] = await Promise.all([
       fetch(`https://api.github.com/repos/${REPO}/commits?per_page=${COMMITS_PER_PAGE}&page=1`, {
@@ -21,7 +21,7 @@ async function fetchCommits(): Promise<Commit[]> {
       }),
     ])
 
-    if (!commitsRes.ok) return []
+    if (!commitsRes.ok) return { commits: [], hasMore: false }
 
     const rawCommits = await commitsRes.json()
 
@@ -33,7 +33,7 @@ async function fetchCommits(): Promise<Commit[]> {
       }
     }
 
-    return rawCommits.map((c: { sha: string; html_url: string; commit: { message: string; author: { date: string } } }) => ({
+    const commits: Commit[] = rawCommits.map((c: { sha: string; html_url: string; commit: { message: string; author: { date: string } } }) => ({
       sha: c.sha,
       shortSha: c.sha.slice(0, 7),
       message: c.commit.message.split('\n')[0],
@@ -41,18 +41,20 @@ async function fetchCommits(): Promise<Commit[]> {
       url: c.html_url,
       branch: branchMap.get(c.sha) || null,
     }))
+
+    return { commits, hasMore: rawCommits.length === COMMITS_PER_PAGE }
   } catch {
-    return []
+    return { commits: [], hasMore: false }
   }
 }
 
-export default async function AdminPage() {
+export default async function CommitsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user || !isAdmin(user)) redirect('/dashboard')
 
-  const [{ data: tasks }, commits] = await Promise.all([
+  const [{ data: tasks }, commitData] = await Promise.all([
     supabase
       .from('admin_tasks')
       .select('*')
@@ -64,20 +66,23 @@ export default async function AdminPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Admin</h2>
+          <div className="flex items-center gap-2 mb-0.5">
+            <Link
+              href="/admin"
+              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Admin
+            </Link>
+            <span className="text-sm text-gray-400">/</span>
+            <h2 className="text-2xl font-bold text-gray-900">Commits</h2>
+          </div>
           <p className="text-sm text-gray-500 mt-0.5">
-            Task tracker for features, bugs, and improvements.
+            Git commit history linked to admin tasks.
           </p>
         </div>
-        <Link
-          href="/admin/commits"
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-        >
-          View commits →
-        </Link>
       </div>
 
-      <AdminTaskList initialTasks={(tasks || []) as AdminTask[]} commits={commits} />
+      <CommitHistory initialCommits={commitData.commits} hasMore={commitData.hasMore} tasks={(tasks || []) as AdminTask[]} />
     </div>
   )
 }
