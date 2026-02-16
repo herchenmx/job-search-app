@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
+const CONSIDERING_STATUSES = ['Bookmarked', 'Interested']
 const INTERVIEWING_STATUSES = [
   '1st Stage', '2nd Stage', '3rd Stage', '4th Stage',
 ]
@@ -17,6 +18,9 @@ export default async function DashboardPage() {
   const allJobs = jobs || []
 
   const reviewCount = allJobs.filter(j => j.status === 'Review').length
+  const consideringCount = allJobs.filter(j =>
+    CONSIDERING_STATUSES.includes(j.status)
+  ).length
   const appliedCount = allJobs.filter(j => j.status === 'Applied').length
   const interviewingCount = allJobs.filter(j =>
     INTERVIEWING_STATUSES.includes(j.status)
@@ -38,6 +42,14 @@ export default async function DashboardPage() {
       bgColor: 'bg-amber-50 border-amber-200',
       icon: '📋',
       filterStatus: 'Review',
+    },
+    {
+      label: 'Considering',
+      count: consideringCount,
+      color: 'text-teal-700',
+      bgColor: 'bg-teal-50 border-teal-200',
+      icon: '🤔',
+      filterStatus: 'considering',
     },
     {
       label: 'Applied',
@@ -75,11 +87,11 @@ export default async function DashboardPage() {
       </div>
 
       {/* Status cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {cards.map((card) => (
           <Link
             key={card.label}
-            href="/jobs"
+            href={`/jobs?status=${encodeURIComponent(card.filterStatus)}`}
             className={`border rounded-xl p-5 ${card.bgColor} hover:shadow-sm transition-shadow`}
           >
             <div className="flex items-center justify-between mb-3">

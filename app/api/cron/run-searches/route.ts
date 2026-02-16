@@ -165,9 +165,44 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // 4. Group jobs back to their search (by discovery_input.url)
+  // 4. Load unwanted keywords for all users with active searches
+  const userIds = [...new Set(searches.map((s: JobSearch) => s.user_id))]
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('user_id, unwanted_keywords')
+    .in('user_id', userIds)
+
+  // Build a map of user_id → lowercased unwanted keywords
+  const unwantedKeywordsMap = new Map<string, string[]>()
+  for (const profile of (profiles || [])) {
+    const keywords = (profile.unwanted_keywords || [])
+      .map((k: string) => k.toLowerCase().trim())
+      .filter((k: string) => k.length > 0)
+    if (keywords.length > 0) {
+      unwantedKeywordsMap.set(profile.user_id, keywords)
+    }
+  }
+
+  // Helper: check if a job matches any unwanted keyword for a user
+  function matchesUnwantedKeyword(job: BrightDataJob, userId: string): string | null {
+    const keywords = unwantedKeywordsMap.get(userId)
+    if (!keywords || keywords.length === 0) return null
+
+    const title = (job.job_title || '').toLowerCase()
+    const summary = (job.job_summary || '').toLowerCase()
+    const company = (job.company_name || '').toLowerCase()
+
+    for (const keyword of keywords) {
+      if (title.includes(keyword) || summary.includes(keyword) || company.includes(keyword)) {
+        return keyword
+      }
+    }
+    return null
+  }
+
+  // 5. Group jobs back to their search (by discovery_input.url)
   // Each BrightData result has discovery_input.url matching the search URL
-  const results = { inserted: 0, skipped: 0, errors: [] as string[] }
+  const results = { inserted: 0, skipped: 0, blocked: 0, errors: [] as string[] }
 
   for (const job of jobs) {
     // Find which search(es) this job belongs to
@@ -179,12 +214,19 @@ export async function GET(request: NextRequest) {
     const userId = matchingSearches[0]?.search.user_id
     if (!userId) continue
 
+    // 5a. Check against unwanted keywords — block before any DB writes
+    const matchedKeyword = matchesUnwantedKeyword(job, userId)
+    if (matchedKeyword) {
+      results.blocked++
+      continue
+    }
+
     // Clean up company URL (strip LinkedIn tracking params)
     const linkedinCompanyPage = job.company_url
       ? job.company_url.replace('?trk=public_jobs_topcard-org-name', '')
       : null
 
-    // 5. Upsert company: check by name + user_id
+    // 6. Upsert company: check by name + user_id
     let companyId: string | null = null
     if (job.company_name) {
       const { data: existing } = await supabase
@@ -210,7 +252,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 6. Skip if job already exists (dedup by posting_url + user_id)
+    // 7. Skip if job already exists (dedup by posting_url + user_id)
     const postingUrl = job.url
     const { data: existingJob } = await supabase
       .from('jobs')
@@ -224,7 +266,7 @@ export async function GET(request: NextRequest) {
       continue
     }
 
-    // 7. Insert job
+    // 8. Insert job
     const { error: insertError } = await supabase.from('jobs').insert({
       user_id: userId,
       company_id: companyId,
@@ -244,7 +286,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 8. Update last_run_at for all searches that ran
+  // 9. Update last_run_at for all searches that ran
   const searchIds = searches.map((s: JobSearch) => s.id)
   await supabase
     .from('job_searches')

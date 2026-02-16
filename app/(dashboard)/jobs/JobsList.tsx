@@ -92,9 +92,11 @@ function JobCard({ job, status }: { job: Job; status: string }) {
 export default function JobsList({
   jobs: initialJobs,
   statusOrder,
+  initialFilterStatuses = [],
 }: {
   jobs: Job[]
   statusOrder: string[]
+  initialFilterStatuses?: string[]
 }) {
   const [jobs, setJobs] = useState<Job[]>(initialJobs)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -104,7 +106,9 @@ export default function JobsList({
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [sortBy, setSortBy] = useState<SortField>('status')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [filterStatus, setFilterStatus] = useState<string>('')
+  const [filterStatuses, setFilterStatuses] = useState<Set<string>>(
+    new Set(initialFilterStatuses)
+  )
   const [search, setSearch] = useState('')
   const router = useRouter()
   const supabase = createClient()
@@ -123,9 +127,9 @@ export default function JobsList({
       )
     }
 
-    // 2. Status filter
-    if (filterStatus) {
-      result = result.filter(j => j.status === filterStatus)
+    // 2. Status filter (supports multiple statuses)
+    if (filterStatuses.size > 0) {
+      result = result.filter(j => filterStatuses.has(j.status))
     }
 
     // 3. Sort
@@ -152,7 +156,7 @@ export default function JobsList({
     })
 
     return result
-  }, [jobs, search, filterStatus, sortBy, sortDir, statusOrder])
+  }, [jobs, search, filterStatuses, sortBy, sortDir, statusOrder])
 
   // Group by status when sorting by status, otherwise flat list
   const grouped = useMemo(() => {
@@ -231,7 +235,7 @@ export default function JobsList({
     }
   }
 
-  const isFiltered = search.trim() || filterStatus
+  const isFiltered = search.trim() || filterStatuses.size > 0
   const showingCount = processedJobs.length
 
   return (
@@ -249,15 +253,34 @@ export default function JobsList({
 
         {/* Status filter */}
         <select
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
+          value={filterStatuses.size === 1 ? Array.from(filterStatuses)[0] : filterStatuses.size > 1 ? '__multi__' : ''}
+          onChange={e => {
+            const val = e.target.value
+            if (val === '') {
+              setFilterStatuses(new Set())
+            } else if (val !== '__multi__') {
+              setFilterStatuses(new Set([val]))
+            }
+          }}
           className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">All statuses</option>
+          {filterStatuses.size > 1 && (
+            <option value="__multi__">{Array.from(filterStatuses).join(', ')}</option>
+          )}
           {availableStatuses.map(s => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+        {filterStatuses.size > 0 && (
+          <button
+            onClick={() => setFilterStatuses(new Set())}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            title="Clear filter"
+          >
+            ✕
+          </button>
+        )}
 
         {/* Sort field */}
         <select

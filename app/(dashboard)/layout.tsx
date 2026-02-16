@@ -35,6 +35,7 @@ export default async function DashboardLayout({
             <>
               <div className="my-2 border-t border-gray-200" />
               <NavLink href="/admin" label="Admin" icon="⚙️" />
+              <NavLink href="/admin/bugs" label="Bug Reports" icon="🐛" />
             </>
           )}
         </nav>

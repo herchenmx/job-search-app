@@ -16,7 +16,20 @@ const ACTIVE_STATUSES = [
   '1st Stage', '2nd Stage', '3rd Stage', '4th Stage', 'Offered'
 ]
 
-export default async function JobsPage() {
+// Composite filter groups map a dashboard filter key to multiple statuses
+const COMPOSITE_FILTERS: Record<string, string[]> = {
+  considering: ['Bookmarked', 'Interested'],
+  interviewing: ['1st Stage', '2nd Stage', '3rd Stage', '4th Stage'],
+}
+
+export default async function JobsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>
+}) {
+  const params = await searchParams
+  const statusParam = params.status || ''
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -29,6 +42,18 @@ export default async function JobsPage() {
   const allJobs = (jobs || []) as Job[]
   const totalJobs = allJobs.length
   const activeJobs = allJobs.filter(j => ACTIVE_STATUSES.includes(j.status)).length
+
+  // Resolve the initial filter: either a composite group or a single status
+  let initialFilterStatuses: string[] = []
+  if (statusParam) {
+    const lowerParam = statusParam.toLowerCase()
+    if (COMPOSITE_FILTERS[lowerParam]) {
+      initialFilterStatuses = COMPOSITE_FILTERS[lowerParam]
+    } else {
+      // Direct status match (e.g. "Applied", "Review", "Rejected")
+      initialFilterStatuses = [statusParam]
+    }
+  }
 
   return (
     <div>
@@ -66,7 +91,13 @@ export default async function JobsPage() {
       )}
 
       {/* Job list with sorting, filtering, search, and multi-select */}
-      {totalJobs > 0 && <JobsList jobs={allJobs} statusOrder={STATUS_ORDER} />}
+      {totalJobs > 0 && (
+        <JobsList
+          jobs={allJobs}
+          statusOrder={STATUS_ORDER}
+          initialFilterStatuses={initialFilterStatuses}
+        />
+      )}
     </div>
   )
 }

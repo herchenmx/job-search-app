@@ -69,12 +69,20 @@ export default async function AdminPage() {
             Task tracker for features, bugs, and improvements.
           </p>
         </div>
-        <Link
-          href="/admin/commits"
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-        >
-          View commits →
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/admin/bugs"
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          >
+            Bug reports →
+          </Link>
+          <Link
+            href="/admin/commits"
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          >
+            View commits →
+          </Link>
+        </div>
       </div>
 
       <AdminTaskList initialTasks={(tasks || []) as AdminTask[]} commits={commits} />
