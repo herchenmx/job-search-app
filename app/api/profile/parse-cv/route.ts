@@ -3,7 +3,7 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { extractText } from 'unpdf'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -23,23 +23,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const buffer = new Uint8Array(await file.arrayBuffer())
-    const doc = await getDocument({ data: buffer, verbosity: 0 }).promise
+    const { totalPages, text } = await extractText(buffer)
 
-    const numPages = doc.numPages
-    const pageTexts: string[] = []
-    for (let i = 1; i <= numPages; i++) {
-      const page = await doc.getPage(i)
-      const content = await page.getTextContent()
-      // TextItem has 'str', TextMarkedContent does not — filter to text items only
-      const text = content.items
-        .filter((item) => 'str' in item)
-        .map((item) => (item as { str: string }).str)
-        .join(' ')
-      pageTexts.push(text)
-    }
-    doc.destroy()
-
-    const fullText = pageTexts.join('\n\n')
+    const fullText = text.join('\n\n')
 
     if (!fullText.trim()) {
       return NextResponse.json(
@@ -50,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       text: fullText.trim(),
-      pages: numPages,
+      pages: totalPages,
     })
   } catch (err) {
     return NextResponse.json(
