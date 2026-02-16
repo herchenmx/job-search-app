@@ -131,3 +131,17 @@ export interface AdminTask {
   created_at: string
   updated_at: string
 }
+
+export type BugReportCategory = 'bug' | 'feedback' | 'other'
+export type BugReportStatus = 'open' | 'acknowledged' | 'resolved'
+
+export interface BugReport {
+  id: string
+  user_id: string
+  description: string
+  category: BugReportCategory
+  page_url: string | null
+  user_agent: string | null
+  status: BugReportStatus
+  created_at: string
+}

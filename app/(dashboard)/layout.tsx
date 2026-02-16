@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { LogOut } from 'lucide-react'
 import { isAdmin } from '@/lib/admin'
+import BugReportWidget from '@/components/BugReportWidget'
 
 export default async function DashboardLayout({
   children,
@@ -55,6 +56,8 @@ export default async function DashboardLayout({
       <main className="flex-1 ml-56 p-6">
         {children}
       </main>
+
+      <BugReportWidget />
     </div>
   )
 }
