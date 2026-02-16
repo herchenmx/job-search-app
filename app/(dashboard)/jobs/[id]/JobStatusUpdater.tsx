@@ -29,15 +29,13 @@ export default function JobStatusUpdater({
   const supabase = createClient()
 
   const handleSave = async () => {
-    setSaving(true)
-    setSaved(false)
+    // Optimistic: show saved immediately
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
     await supabase
       .from('jobs')
       .update({ status, status_reason: reason || null })
       .eq('id', jobId)
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
     router.refresh()
   }
 

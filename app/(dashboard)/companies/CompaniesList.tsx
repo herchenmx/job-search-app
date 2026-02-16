@@ -52,10 +52,11 @@ function CompanyCard({ company }: { company: CompanyWithJobs }) {
 }
 
 export default function CompaniesList({
-  companies,
+  companies: initialCompanies,
 }: {
   companies: CompanyWithJobs[]
 }) {
+  const [companies, setCompanies] = useState<CompanyWithJobs[]>(initialCompanies)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -110,22 +111,20 @@ export default function CompaniesList({
   }
 
   const handleBulkDelete = async () => {
-    setDeleting(true)
+    const idsToDelete = Array.from(selected)
+    // Optimistic: remove from UI immediately
+    setCompanies(prev => prev.filter(c => !selected.has(c.id)))
+    setSelected(new Set())
+    setConfirming(false)
+    setDeleting(false)
     try {
-      const res = await fetch('/api/companies/delete', {
+      await fetch('/api/companies/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyIds: Array.from(selected) }),
+        body: JSON.stringify({ companyIds: idsToDelete }),
       })
-      if (res.ok) {
-        setSelected(new Set())
-        setConfirming(false)
-        router.refresh()
-      }
     } catch {
-      // ignore
-    } finally {
-      setDeleting(false)
+      // ignore — already removed from UI
     }
   }
 

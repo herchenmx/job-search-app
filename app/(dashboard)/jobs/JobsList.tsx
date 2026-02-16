@@ -90,12 +90,13 @@ function JobCard({ job, status }: { job: Job; status: string }) {
 }
 
 export default function JobsList({
-  jobs,
+  jobs: initialJobs,
   statusOrder,
 }: {
   jobs: Job[]
   statusOrder: string[]
 }) {
+  const [jobs, setJobs] = useState<Job[]>(initialJobs)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -194,42 +195,39 @@ export default function JobsList({
   }
 
   const handleBulkDelete = async () => {
-    setDeleting(true)
+    const idsToDelete = Array.from(selected)
+    // Optimistic: remove from UI immediately
+    setJobs(prev => prev.filter(j => !selected.has(j.id)))
+    setSelected(new Set())
+    setConfirming(false)
+    setDeleting(false)
     try {
-      const res = await fetch('/api/jobs/delete', {
+      await fetch('/api/jobs/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobIds: Array.from(selected) }),
+        body: JSON.stringify({ jobIds: idsToDelete }),
       })
-      if (res.ok) {
-        setSelected(new Set())
-        setConfirming(false)
-        router.refresh()
-      }
     } catch {
-      // ignore
-    } finally {
-      setDeleting(false)
+      // ignore — already removed from UI
     }
   }
 
   const handleBulkStatusChange = async () => {
     if (!bulkStatus || selected.size === 0) return
-    setUpdatingStatus(true)
+    const idsToUpdate = Array.from(selected)
+    const newStatus = bulkStatus as Job['status']
+    // Optimistic: update status in UI immediately
+    setJobs(prev => prev.map(j => idsToUpdate.includes(j.id) ? { ...j, status: newStatus } : j))
+    setSelected(new Set())
+    setBulkStatus('')
+    setUpdatingStatus(false)
     try {
-      const { error } = await supabase
+      await supabase
         .from('jobs')
         .update({ status: bulkStatus })
-        .in('id', Array.from(selected))
-      if (!error) {
-        setSelected(new Set())
-        setBulkStatus('')
-        router.refresh()
-      }
+        .in('id', idsToUpdate)
     } catch {
-      // ignore
-    } finally {
-      setUpdatingStatus(false)
+      // ignore — already updated in UI
     }
   }
 
