@@ -11,7 +11,8 @@ function buildLinkedInUrl(search: JobSearch): string {
   let url = 'https://www.linkedin.com/jobs/search/?f_TPR=r86400'
 
   if (search.keyword) {
-    url += `&keywords=${encodeURIComponent(search.keyword)}`
+    // Wrap in quotes for exact phrase matching on LinkedIn
+    url += `&keywords=${encodeURIComponent(`"${search.keyword}"`)}`
   }
 
   if (search.location) {
