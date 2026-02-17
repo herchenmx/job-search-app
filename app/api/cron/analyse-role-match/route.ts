@@ -25,9 +25,12 @@ Your task is to:
 - Respond with ONLY the JSON object, no other text.`
 
 export async function GET(request: NextRequest) {
-  // Kill switch — set CRONS_PAUSED=true in Vercel env to pause all cron jobs
-  if (process.env.CRONS_PAUSED === 'true') {
-    return NextResponse.json({ message: 'Crons are paused' })
+  // ── ALL CRON JOBS PERMANENTLY DISABLED ──
+  // Crons removed from vercel.json and hard-disabled here as a safety net.
+  // To re-enable: set CRONS_DISABLED to false AND re-add schedules to vercel.json.
+  const CRONS_DISABLED = true
+  if (CRONS_DISABLED || process.env.CRONS_PAUSED === 'true') {
+    return NextResponse.json({ message: 'Cron jobs are permanently disabled' })
   }
 
   const authHeader = request.headers.get('authorization')
@@ -46,12 +49,14 @@ export async function GET(request: NextRequest) {
   const deepseekKey = process.env.DEEPSEEK_API_KEY
   if (!deepseekKey) return NextResponse.json({ error: 'DEEPSEEK_API_KEY not set' }, { status: 500 })
 
+  // Only analyse jobs the user is considering (Bookmarked/Interested), not Review
   const { data: jobs, error } = await supabase
     .from('jobs')
     .select('id, company, job_title, job_description_full, user_id')
     .is('job_match_rate', null)
     .eq('needs_role_match_reanalysis', false)
     .not('job_description_full', 'is', null)
+    .in('status', ['Bookmarked', 'Interested'])
     .limit(10)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

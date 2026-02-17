@@ -75,8 +75,8 @@ export default function AdminTaskList({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkAction, setBulkAction] = useState(false)
 
-  // Collapsible sections state
-  const [collapsedSections, setCollapsedSections] = useState<Set<AdminTaskStatus>>(new Set())
+  // Collapsible sections state — 'done' starts collapsed by default
+  const [collapsedSections, setCollapsedSections] = useState<Set<AdminTaskStatus>>(new Set(['done']))
 
   // Add form state
   const [newTitle, setNewTitle] = useState('')
@@ -151,10 +151,10 @@ export default function AdminTaskList({
     return c
   }, [tasks])
 
-  // Global task numbering: assign a sequential number to each task based on position in the full list
+  // Stable task numbering: use the persisted position field so numbers never change when tasks are deleted
   const taskNumberMap = useMemo(() => {
     const map = new Map<string, number>()
-    tasks.forEach((t, i) => map.set(t.id, i + 1))
+    tasks.forEach(t => map.set(t.id, t.position + 1))
     return map
   }, [tasks])
 
@@ -630,12 +630,16 @@ export default function AdminTaskList({
                         }`}
                       >
                         {editingId === task.id ? (
-                          /* Edit mode */
-                          <div className="space-y-3">
+                          /* Edit mode — Enter to save, Esc to cancel */
+                          <div className="space-y-3" onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit() }
+                            if (e.key === 'Escape') { e.preventDefault(); setEditingId(null) }
+                          }}>
                             <input
                               type="text"
                               value={editTitle}
                               onChange={e => setEditTitle(e.target.value)}
+                              autoFocus
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                             />
                             <textarea
@@ -643,6 +647,12 @@ export default function AdminTaskList({
                               onChange={e => setEditDescription(e.target.value)}
                               placeholder="Description (optional)"
                               rows={2}
+                              onKeyDown={e => {
+                                // Allow Enter in textarea for newlines, only save on Ctrl/Cmd+Enter
+                                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSaveEdit() }
+                                // Prevent the parent onKeyDown from firing for plain Enter in textarea
+                                if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) e.stopPropagation()
+                              }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 resize-none"
                             />
                             <div className="flex items-center gap-3 flex-wrap">
@@ -698,7 +708,7 @@ export default function AdminTaskList({
                             />
                           </div>
                         ) : (
-                          /* View mode */
+                          /* View mode — click task content to enter edit mode */
                           <div className="flex items-start justify-between gap-3">
                             {/* Checkbox for multi-select */}
                             <input
@@ -707,12 +717,15 @@ export default function AdminTaskList({
                               onChange={() => toggleSelect(task.id)}
                               className="mt-1 shrink-0 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
-                            <div className="flex-1 min-w-0">
+                            <div
+                              className="flex-1 min-w-0 cursor-pointer"
+                              onClick={() => startEdit(task)}
+                            >
                               <div className="flex items-center gap-2 flex-wrap mb-1">
                                 <span className="text-xs font-mono text-gray-400 shrink-0">#{taskNum}</span>
                                 <span className="text-sm font-medium text-gray-900">{task.title}</span>
                                 <button
-                                  onClick={() => handleStatusCycle(task)}
+                                  onClick={e => { e.stopPropagation(); handleStatusCycle(task) }}
                                   className={`text-xs px-2 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLOURS[task.status]}`}
                                   title={`Click to move to ${STATUS_LABELS[NEXT_STATUS[task.status]]}`}
                                 >
@@ -740,6 +753,7 @@ export default function AdminTaskList({
                                         href={commit?.url || `${GITHUB_REPO}/commit/${sha}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        onClick={e => e.stopPropagation()}
                                         className="text-xs font-mono bg-gray-50 text-blue-600 hover:bg-blue-50 px-1.5 py-0.5 rounded border border-gray-200 transition-colors"
                                         title={commit?.message || sha}
                                       >
@@ -754,12 +768,6 @@ export default function AdminTaskList({
                               </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <button
-                                onClick={() => startEdit(task)}
-                                className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                              >
-                                Edit
-                              </button>
                               {deletingId === task.id ? (
                                 <div className="flex items-center gap-1">
                                   <button

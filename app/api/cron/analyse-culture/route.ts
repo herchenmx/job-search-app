@@ -31,9 +31,12 @@ Your task is to:
 - Respond with ONLY the JSON object, no other text.`
 
 export async function GET(request: NextRequest) {
-  // Kill switch — set CRONS_PAUSED=true in Vercel env to pause all cron jobs
-  if (process.env.CRONS_PAUSED === 'true') {
-    return NextResponse.json({ message: 'Crons are paused' })
+  // ── ALL CRON JOBS PERMANENTLY DISABLED ──
+  // Crons removed from vercel.json and hard-disabled here as a safety net.
+  // To re-enable: set CRONS_DISABLED to false AND re-add schedules to vercel.json.
+  const CRONS_DISABLED = true
+  if (CRONS_DISABLED || process.env.CRONS_PAUSED === 'true') {
+    return NextResponse.json({ message: 'Cron jobs are permanently disabled' })
   }
 
   const authHeader = request.headers.get('authorization')
@@ -58,11 +61,13 @@ export async function GET(request: NextRequest) {
   // Process max 4 per run to stay within Anthropic's 5 RPM limit
   // (15s delay between calls = 4 calls in ~60s = safe within Vercel timeout)
   // Exclude companies flagged as needing reanalysis (rubric was missing when last attempted)
+  // Only analyse companies that have at least one job with Bookmarked/Interested status
   const { data: companies, error } = await supabase
     .from('companies')
-    .select('id, name, linkedin_page, user_id')
+    .select('id, name, linkedin_page, user_id, jobs!inner(status)')
     .is('cultural_match_rate', null)
     .eq('needs_culture_reanalysis', false)
+    .in('jobs.status', ['Bookmarked', 'Interested'])
     .order('name', { ascending: true })
     .limit(4)
 

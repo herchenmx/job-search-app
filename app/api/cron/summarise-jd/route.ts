@@ -37,9 +37,12 @@ Critical Style & Format Rules:
 Validation Step: Before finalizing your response, check it against all rules: correct headers, bullet format, no markdown, no extraneous text, and character count. Do not return output unless validated.`
 
 export async function GET(request: NextRequest) {
-  // Kill switch — set CRONS_PAUSED=true in Vercel env to pause all cron jobs
-  if (process.env.CRONS_PAUSED === 'true') {
-    return NextResponse.json({ message: 'Crons are paused' })
+  // ── ALL CRON JOBS PERMANENTLY DISABLED ──
+  // Crons removed from vercel.json and hard-disabled here as a safety net.
+  // To re-enable: set CRONS_DISABLED to false AND re-add schedules to vercel.json.
+  const CRONS_DISABLED = true
+  if (CRONS_DISABLED || process.env.CRONS_PAUSED === 'true') {
+    return NextResponse.json({ message: 'Cron jobs are permanently disabled' })
   }
 
   const authHeader = request.headers.get('authorization')

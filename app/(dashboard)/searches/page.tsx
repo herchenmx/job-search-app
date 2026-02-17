@@ -2,24 +2,16 @@ import { createClient } from '@/lib/supabase/server'
 import { JobSearch } from '@/types'
 import Link from 'next/link'
 import SearchToggle from './SearchToggle'
-import KeywordsSection from './KeywordsSection'
 
 export default async function SearchesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: searches }, { data: profile }] = await Promise.all([
-    supabase
-      .from('job_searches')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('user_profiles')
-      .select('wanted_keywords, unwanted_keywords')
-      .eq('user_id', user!.id)
-      .single(),
-  ])
+  const { data: searches } = await supabase
+    .from('job_searches')
+    .select('*')
+    .eq('user_id', user!.id)
+    .order('created_at', { ascending: false })
 
   const totalSearches = searches?.length ?? 0
   const activeSearches = searches?.filter((s: JobSearch) => s.is_active).length ?? 0
@@ -40,11 +32,6 @@ export default async function SearchesPage() {
           + New search
         </Link>
       </div>
-
-      <KeywordsSection
-        initialWanted={profile?.wanted_keywords ?? []}
-        initialUnwanted={profile?.unwanted_keywords ?? []}
-      />
 
       {totalSearches === 0 && (
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">

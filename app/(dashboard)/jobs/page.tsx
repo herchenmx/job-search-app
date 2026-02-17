@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Job } from '@/types'
 import Link from 'next/link'
 import JobsList from './JobsList'
+import KeywordsSection from '../searches/KeywordsSection'
 
 const STATUS_ORDER = [
   'Interested', 'Bookmarked', 'Review', 'Reposted',
@@ -33,11 +34,18 @@ export default async function JobsPage({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: jobs } = await supabase
-    .from('jobs')
-    .select('*, companies(name, cultural_match_rate)')
-    .eq('user_id', user!.id)
-    .order('prioritisation_score', { ascending: false })
+  const [{ data: jobs }, { data: profile }] = await Promise.all([
+    supabase
+      .from('jobs')
+      .select('*, companies(name, cultural_match_rate)')
+      .eq('user_id', user!.id)
+      .order('prioritisation_score', { ascending: false }),
+    supabase
+      .from('user_profiles')
+      .select('wanted_keywords, unwanted_keywords')
+      .eq('user_id', user!.id)
+      .single(),
+  ])
 
   const allJobs = (jobs || []) as Job[]
   const totalJobs = allJobs.length
@@ -72,6 +80,12 @@ export default async function JobsPage({
           + Add job
         </Link>
       </div>
+
+      {/* Keywords for filtering scraped jobs */}
+      <KeywordsSection
+        initialWanted={profile?.wanted_keywords ?? []}
+        initialUnwanted={profile?.unwanted_keywords ?? []}
+      />
 
       {/* Empty state */}
       {totalJobs === 0 && (

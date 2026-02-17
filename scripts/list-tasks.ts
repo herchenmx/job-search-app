@@ -11,7 +11,7 @@ async function main() {
   const { data, error } = await supabase
     .from('admin_tasks')
     .select('*')
-    .order('id', { ascending: true })
+    .order('position', { ascending: true })
 
   if (error) {
     console.error('Error:', error.message)
@@ -19,7 +19,7 @@ async function main() {
   }
 
   for (const task of data) {
-    console.log(`#${task.id} [${task.status}] ${task.title}`)
+    console.log(`#${task.position + 1} [${task.status}] ${task.title}`)
     if (task.description) console.log(`   ${task.description}`)
     if (task.commit_shas?.length) console.log(`   commits: ${task.commit_shas.join(', ')}`)
     console.log()

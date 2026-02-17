@@ -64,7 +64,7 @@ export default function KeywordsSection({
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-900">Search Keywords</h3>
+        <h3 className="text-sm font-semibold text-gray-900">Keywords</h3>
         <div className="flex items-center gap-2">
           {saved && <span className="text-xs text-green-600 font-medium">Saved</span>}
           {editing ? (
@@ -117,7 +117,7 @@ export default function KeywordsSection({
               placeholder="Junior, Unpaid, Marketing Manager…"
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
             />
-            <p className="text-xs text-gray-400 mt-1">Comma-separated. Jobs with these keywords are deprioritised.</p>
+            <p className="text-xs text-gray-400 mt-1">Comma-separated. Scraped jobs matching these keywords are blocked from the database.</p>
           </div>
         </div>
       ) : hasKeywords ? (
@@ -144,7 +144,7 @@ export default function KeywordsSection({
           )}
         </div>
       ) : (
-        <p className="text-sm text-gray-400 italic">No keywords set. Keywords help prioritise and deprioritise job search results.</p>
+        <p className="text-sm text-gray-400 italic">No keywords set. Wanted keywords prioritise jobs; unwanted keywords block them from being scraped.</p>
       )}
     </div>
   )

@@ -112,9 +112,12 @@ async function scrapeWithBrightData(urls: string[]): Promise<BrightDataJob[]> {
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  // Kill switch — set CRONS_PAUSED=true in Vercel env to pause all cron jobs
-  if (process.env.CRONS_PAUSED === 'true') {
-    return NextResponse.json({ message: 'Crons are paused' })
+  // ── ALL CRON JOBS PERMANENTLY DISABLED ──
+  // Crons removed from vercel.json and hard-disabled here as a safety net.
+  // To re-enable: set CRONS_DISABLED to false AND re-add schedules to vercel.json.
+  const CRONS_DISABLED = true
+  if (CRONS_DISABLED || process.env.CRONS_PAUSED === 'true') {
+    return NextResponse.json({ message: 'Cron jobs are permanently disabled' })
   }
 
   // Verify this is called by Vercel cron (or allow in dev)
