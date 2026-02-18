@@ -110,6 +110,41 @@ async function scrapeWithBrightData(urls: string[]): Promise<BrightDataJob[]> {
     .filter((item: BrightDataJob) => item && item.job_title && !('error' in item))
 }
 
+// ── Dedup helpers (ported from n8n Workflow #7) ──────────────────────────────
+
+function normalizeUrl(url: string): string {
+  return url.toLowerCase().trim().replace(/\/+$/, '')
+}
+
+function calculateSimilarity(a: string, b: string): number {
+  const s1 = a.toLowerCase().trim()
+  const s2 = b.toLowerCase().trim()
+  if (s1 === s2) return 1
+  if (s1.length === 0 || s2.length === 0) return 0
+
+  const len1 = s1.length
+  const len2 = s2.length
+
+  // Two-row Levenshtein (avoids strict-mode indexing issues with 2D arrays)
+  let prev = Array.from({ length: len2 + 1 }, (_, j) => j)
+  let curr = new Array<number>(len2 + 1)
+
+  for (let i = 1; i <= len1; i++) {
+    curr[0] = i
+    for (let j = 1; j <= len2; j++) {
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1
+      curr[j] = Math.min(
+        prev[j]! + 1,
+        curr[j - 1]! + 1,
+        prev[j - 1]! + cost
+      )
+    }
+    ;[prev, curr] = [curr, prev]
+  }
+
+  return 1 - prev[len2]! / Math.max(len1, len2)
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
@@ -204,9 +239,44 @@ export async function GET(request: NextRequest) {
     return null
   }
 
-  // 5. Group jobs back to their search (by discovery_input.url)
-  // Each BrightData result has discovery_input.url matching the search URL
-  const results = { inserted: 0, skipped: 0, blocked: 0, errors: [] as string[] }
+  // 5. Pre-load all existing jobs per user for duplicate detection
+  const existingJobsByUser = new Map<string, Array<{
+    id: string
+    posting_url: string
+    job_title: string
+    linkedin_company_page: string | null
+    status: string
+    application_date: string | null
+    prioritisation_score: number | null
+    experience_match_rate: number | null
+    job_match_rate: number | null
+    job_match_insights: string | null
+    experience_match_insights: string | null
+    job_description: string | null
+    tailored_covering_letter: string | null
+    salary_expectation: number | null
+    companies: { cultural_match_rate: number | null } | null
+  }>>()
+
+  for (const uid of userIds) {
+    const { data: userJobs } = await supabase
+      .from('jobs')
+      .select(`
+        id, posting_url, job_title, linkedin_company_page,
+        status, application_date, prioritisation_score,
+        experience_match_rate, job_match_rate, job_match_insights,
+        experience_match_insights, job_description, tailored_covering_letter,
+        salary_expectation,
+        companies(cultural_match_rate)
+      `)
+      .eq('user_id', uid)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    existingJobsByUser.set(uid, (userJobs || []) as any)
+  }
+
+  // 6. Process scraped jobs: filter, dedup, insert
+  const results = { inserted: 0, skipped: 0, blocked: 0, reopened: 0, errors: [] as string[] }
 
   for (const job of jobs) {
     // Find which search(es) this job belongs to
@@ -256,21 +326,94 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 7. Skip if job already exists (dedup by posting_url + user_id)
+    // 7. Duplicate detection (ported from n8n Workflow #7)
     const postingUrl = job.url
-    const { data: existingJob } = await supabase
-      .from('jobs')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('posting_url', postingUrl)
-      .single()
+    const normalizedNewUrl = normalizeUrl(postingUrl)
+    const userExistingJobs = existingJobsByUser.get(userId) || []
 
-    if (existingJob) {
-      results.skipped++
-      continue
+    // Match Strategy 1: Exact normalized posting URL
+    let matchedExisting = userExistingJobs.find(
+      ej => normalizeUrl(ej.posting_url) === normalizedNewUrl
+    )
+
+    // Match Strategy 2: Same company (by linkedin_company_page) + similar title (>=85%)
+    if (!matchedExisting && linkedinCompanyPage) {
+      const normalizedNewCompanyUrl = normalizeUrl(linkedinCompanyPage)
+      matchedExisting = userExistingJobs.find(ej => {
+        if (!ej.linkedin_company_page) return false
+        if (normalizeUrl(ej.linkedin_company_page) !== normalizedNewCompanyUrl) return false
+        return calculateSimilarity(job.job_title, ej.job_title) >= 0.85
+      })
     }
 
-    // 8. Insert job
+    if (matchedExisting) {
+      const existingStatus = matchedExisting.status
+      const culturalMatchRate = matchedExisting.companies?.cultural_match_rate ?? 0
+      const experienceMatchRate = matchedExisting.experience_match_rate ?? 0
+      const prioritisationScore = matchedExisting.prioritisation_score ?? 0
+
+      if (existingStatus === 'Closed') {
+        // Scenario 1: Closed with high scores → reactivate as Bookmarked
+        if (culturalMatchRate >= 60 && experienceMatchRate >= 70 && prioritisationScore >= 70) {
+          await supabase.from('jobs').update({ status: 'Bookmarked' }).eq('id', matchedExisting.id)
+          results.reopened++
+          continue
+        }
+        // Scenario 2: Closed with low scores → skip
+        results.skipped++
+        continue
+
+      } else if (
+        ['Rejected', 'Applied', '1st Stage', '2nd Stage', '3rd Stage'].includes(existingStatus)
+      ) {
+        // Scenario 3: Previously applied/rejected — check if >7 days ago
+        const appDate = matchedExisting.application_date
+          ? new Date(matchedExisting.application_date)
+          : null
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+        if (appDate && appDate < sevenDaysAgo) {
+          // Insert as 'Reposted' with analysis data copied from existing
+          const { error: insertError } = await supabase.from('jobs').insert({
+            user_id: userId,
+            company_id: companyId,
+            job_title: job.job_title,
+            posting_url: postingUrl,
+            company: job.company_name,
+            linkedin_company_page: linkedinCompanyPage,
+            job_description_full: job.job_summary ?? null,
+            status: 'Reposted',
+            is_live: true,
+            job_match_rate: matchedExisting.job_match_rate,
+            job_match_insights: matchedExisting.job_match_insights,
+            experience_match_rate: matchedExisting.experience_match_rate,
+            experience_match_insights: matchedExisting.experience_match_insights,
+            job_description: matchedExisting.job_description,
+            tailored_covering_letter: matchedExisting.tailored_covering_letter,
+            salary_expectation: matchedExisting.salary_expectation,
+            prioritisation_score: matchedExisting.prioritisation_score,
+          })
+
+          if (insertError) {
+            results.errors.push(`${job.job_title}: ${insertError.message}`)
+          } else {
+            results.inserted++
+          }
+          continue
+        }
+        // Application date is recent (<=7 days) or null → skip
+        results.skipped++
+        continue
+
+      } else {
+        // Scenario 4: Any other status (Bookmarked, Review, Interested, etc.) → skip
+        results.skipped++
+        continue
+      }
+    }
+
+    // 8. No match found — insert as new with status 'Review'
     const { error: insertError } = await supabase.from('jobs').insert({
       user_id: userId,
       company_id: companyId,
