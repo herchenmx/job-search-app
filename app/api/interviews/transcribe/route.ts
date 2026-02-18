@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { trackedFetch } from '@/lib/api-logger'
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
   const assemblyKey = process.env.ASSEMBLYAI_API_KEY
   if (!assemblyKey) return NextResponse.json({ error: 'ASSEMBLYAI_API_KEY not set' }, { status: 500 })
 
-  const aaiResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
+  const aaiResponse = await trackedFetch('https://api.assemblyai.com/v2/transcript', {
     method: 'POST',
     headers: {
       authorization: assemblyKey,
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
       summary_type: 'bullets',
       iab_categories: true,
     }),
-  })
+  }, { service: 'assemblyai', endpoint: '/v2/transcript', metadata: { recording_id } })
 
   if (!aaiResponse.ok) {
     const err = await aaiResponse.text()

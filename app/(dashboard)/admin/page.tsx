@@ -71,6 +71,12 @@ export default async function AdminPage() {
         </div>
         <div className="flex items-center gap-4">
           <Link
+            href="/admin/api-logs"
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          >
+            API logs →
+          </Link>
+          <Link
             href="/admin/bugs"
             className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
           >

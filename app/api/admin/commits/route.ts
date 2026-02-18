@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/admin'
+import { trackedFetch } from '@/lib/api-logger'
 
 const REPO = 'herchenmx/job-search-app'
 const PER_PAGE = 30
@@ -37,15 +38,15 @@ export async function GET(request: NextRequest) {
   try {
     // Fetch commits and branches in parallel
     const [commitsRes, branchesRes] = await Promise.all([
-      fetch(`https://api.github.com/repos/${REPO}/commits?per_page=${PER_PAGE}&page=${page}`, {
+      trackedFetch(`https://api.github.com/repos/${REPO}/commits?per_page=${PER_PAGE}&page=${page}`, {
         headers: { 'Accept': 'application/vnd.github.v3+json' },
         next: { revalidate: 60 },
-      }),
+      } as RequestInit, { service: 'github', endpoint: `/repos/${REPO}/commits`, method: 'GET' }),
       page === 1
-        ? fetch(`https://api.github.com/repos/${REPO}/branches?per_page=100`, {
+        ? trackedFetch(`https://api.github.com/repos/${REPO}/branches?per_page=100`, {
             headers: { 'Accept': 'application/vnd.github.v3+json' },
             next: { revalidate: 300 },
-          })
+          } as RequestInit, { service: 'github', endpoint: `/repos/${REPO}/branches`, method: 'GET' })
         : Promise.resolve(null),
     ])
 

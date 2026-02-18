@@ -4,6 +4,7 @@ export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parseAnalysisResponse } from '@/lib/scoring'
+import { trackedFetch } from '@/lib/api-logger'
 
 const SYSTEM_PROMPT = `You are an expert job application analyst specializing in matching candidate's organisational culture preferences with companies.
 
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
 
   // Call Claude with web search
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await trackedFetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': anthropicKey,
@@ -93,7 +94,7 @@ the Cultural Preferences are here: ${profile.culture_preferences_rubric}`,
           },
         ],
       }),
-    })
+    }, { service: 'anthropic', endpoint: '/v1/messages', metadata: { company_id: company.id, analysis: 'culture' } })
 
     if (!response.ok) {
       return NextResponse.json({ error: `Anthropic error ${response.status}` }, { status: 500 })

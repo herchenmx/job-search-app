@@ -3,6 +3,7 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { trackedFetch } from '@/lib/api-logger'
 
 const SYSTEM_PROMPT = `You are a precise summarization engine. Your task is to create a structured, bulleted summary of a provided job description for storage in a database.
 
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const response = await fetch('https://api.deepseek.com/chat/completions', {
+      const response = await trackedFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${deepseekKey}`,
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
             { role: 'user', content: `Please summarise this job description:\n\n${job.job_description_full}` },
           ],
         }),
-      })
+      }, { service: 'deepseek', endpoint: '/chat/completions', metadata: { job_id: job.id, analysis: 'summarise-jd' } })
 
       if (!response.ok) {
         results.errors.push(`${job.company}: DeepSeek error ${response.status}`)

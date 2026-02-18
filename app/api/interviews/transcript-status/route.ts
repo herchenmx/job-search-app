@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { trackedFetch } from '@/lib/api-logger'
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
@@ -29,9 +30,9 @@ export async function POST(request: NextRequest) {
   if (!assemblyKey) return NextResponse.json({ error: 'ASSEMBLYAI_API_KEY not set' }, { status: 500 })
 
   // Poll AssemblyAI for status
-  const aaiResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${assemblyai_id}`, {
+  const aaiResponse = await trackedFetch(`https://api.assemblyai.com/v2/transcript/${assemblyai_id}`, {
     headers: { authorization: assemblyKey },
-  })
+  }, { service: 'assemblyai', endpoint: '/v2/transcript/:id', method: 'GET', metadata: { assemblyai_id } })
 
   if (!aaiResponse.ok) {
     return NextResponse.json({ error: 'AssemblyAI poll failed' }, { status: 500 })

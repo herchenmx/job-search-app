@@ -4,6 +4,7 @@ export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { JobSearch } from '@/types'
+import { trackedFetch } from '@/lib/api-logger'
 
 // ── LinkedIn URL builder (ported from Workflow #3 JS) ─────────────────────────
 
@@ -76,7 +77,7 @@ async function scrapeWithBrightData(urls: string[]): Promise<BrightDataJob[]> {
     input: urls.map(url => ({ url })),
   }
 
-  const res = await fetch(
+  const res = await trackedFetch(
     'https://api.brightdata.com/datasets/v3/scrape?dataset_id=gd_lpfll7v5hcqtkxl6l&notify=false&include_errors=true&type=discover_new&discover_by=url',
     {
       method: 'POST',
@@ -85,7 +86,8 @@ async function scrapeWithBrightData(urls: string[]): Promise<BrightDataJob[]> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-    }
+    },
+    { service: 'brightdata', endpoint: '/datasets/v3/scrape' }
   )
 
   const text = await res.text()

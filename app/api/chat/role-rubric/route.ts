@@ -4,6 +4,7 @@ export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { trackedFetch } from '@/lib/api-logger'
 
 const SYSTEM_MESSAGE = `You are a thoughtful career coach specializing in helping job seekers articulate their role preferences. Your goal is to guide them through a conversational process that results in a clear, actionable rubric they can use to evaluate job opportunities.
 
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
   const deepseekKey = process.env.DEEPSEEK_API_KEY
   if (!deepseekKey) return NextResponse.json({ error: 'DEEPSEEK_API_KEY not set' }, { status: 500 })
 
-  const response = await fetch('https://api.deepseek.com/chat/completions', {
+  const response = await trackedFetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${deepseekKey}`,
@@ -170,7 +171,7 @@ export async function POST(request: NextRequest) {
       ],
       stream: false,
     }),
-  })
+  }, { service: 'deepseek', endpoint: '/chat/completions', metadata: { chat: 'role-rubric' } })
 
   if (!response.ok) {
     const err = await response.text()

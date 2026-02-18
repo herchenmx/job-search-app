@@ -4,6 +4,7 @@ export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { parseAnalysisResponse } from '@/lib/scoring'
+import { trackedFetch } from '@/lib/api-logger'
 
 const SYSTEM_PROMPT = `You are an expert job application analyst specializing in matching candidate profiles to job requirements.
 
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const response = await fetch('https://api.deepseek.com/chat/completions', {
+      const response = await trackedFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${deepseekKey}`,
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
             },
           ],
         }),
-      })
+      }, { service: 'deepseek', endpoint: '/chat/completions', metadata: { job_id: job.id, analysis: 'experience-match' } })
 
       if (!response.ok) {
         results.errors.push(`${job.company}: DeepSeek error ${response.status}`)

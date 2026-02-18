@@ -145,3 +145,15 @@ export interface BugReport {
   status: BugReportStatus
   created_at: string
 }
+
+export interface ApiCallLog {
+  id: string
+  service: string
+  endpoint: string
+  method: string
+  status_code: number | null
+  duration_ms: number | null
+  error: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+}
