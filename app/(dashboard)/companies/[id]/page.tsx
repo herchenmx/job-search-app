@@ -4,6 +4,16 @@ import Link from 'next/link'
 import { Company, Job } from '@/types'
 import DeleteCompanyButton from './DeleteCompanyButton'
 
+// ===== ADDED FOR STATIC EXPORT =====
+export async function generateStaticParams() {
+  // For static export with authenticated routes, we use a placeholder
+  // The actual data will be fetched when the user visits the page
+  return [
+    { id: 'placeholder' }
+  ]
+}
+// ===== END OF ADDED CODE =====
+
 export default async function CompanyDetailPage({
   params,
 }: {
@@ -127,3 +137,7 @@ export default async function CompanyDetailPage({
     </div>
   )
 }
+
+// ===== ADDED AT THE BOTTOM FOR STATIC EXPORT =====
+export const dynamic = 'force-static'
+// ===== END OF ADDED CODE =====

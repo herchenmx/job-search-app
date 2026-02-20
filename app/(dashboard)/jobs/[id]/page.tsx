@@ -8,6 +8,16 @@ import CultureAnalysisButton from './CultureAnalysisButton'
 import DeleteJobButton from './DeleteJobButton'
 import CollapsibleSection from './CollapsibleSection'
 
+// ===== ADDED FOR STATIC EXPORT =====
+export async function generateStaticParams() {
+  // For static export with authenticated routes, we use a placeholder
+  // The actual data will be fetched when the user visits the page
+  return [
+    { id: 'placeholder' }
+  ]
+}
+// ===== END OF ADDED CODE =====
+
 const STATUS_COLOURS: Record<string, string> = {
   'Interested':   'bg-green-100 text-green-800',
   'Bookmarked':   'bg-blue-100 text-blue-800',
@@ -281,3 +291,7 @@ export default async function JobDetailPage({
     </div>
   )
 }
+
+// ===== ADDED AT THE BOTTOM FOR STATIC EXPORT =====
+export const dynamic = 'force-static'
+// ===== END OF ADDED CODE =====

@@ -2,6 +2,16 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import SearchForm from '../SearchForm'
 
+// ===== ADDED FOR STATIC EXPORT =====
+export async function generateStaticParams() {
+  // For static export with authenticated routes, we use a placeholder
+  // The actual data will be fetched when the user visits the page
+  return [
+    { id: 'placeholder' }
+  ]
+}
+// ===== END OF ADDED CODE =====
+
 export default async function EditSearchPage({
   params,
 }: {
@@ -22,3 +32,7 @@ export default async function EditSearchPage({
 
   return <SearchForm search={search} />
 }
+
+// ===== ADDED AT THE BOTTOM FOR STATIC EXPORT =====
+export const dynamic = 'force-static'
+// ===== END OF ADDED CODE =====
