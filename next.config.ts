@@ -4,7 +4,7 @@ import withPWA from 'next-pwa';
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
   // Enable static export for Capacitor
-  output: 'export',
+  // output: 'export',
   
   // Tell Next.js to put the static files in a folder called 'out'
   distDir: 'out',
